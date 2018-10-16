@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DefaultPojoFormatter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Pojomatic</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic.formatter</a> &gt; <span class="el_source">DefaultPojoFormatter.java</span></div><h1>DefaultPojoFormatter.java</h1><pre class="source lang-java linenums">package org.pojomatic.formatter;
+
+import org.pojomatic.Pojomatic;
+import org.pojomatic.PropertyElement;
+
+/**
+ * Default formatter for classes that use {@link Pojomatic}.  This implementation first presents
+ * the class name, and then each property in turn, separated by commas, using braces to indicate
+ * nesting.
+ * &lt;p&gt;
+ * For example, if a class Person has two properties, firstName and LastName, and these properties
+ * are using {@link DefaultPropertyFormatter}, then the Person
+ * instance representing Joe Blow would be represented as
+ * &lt;code&gt;&quot;Person{firstName: {Joe}, lastName: {Blow}}&quot;&lt;/code&gt;
+ *
+ * @deprecated Since 2.0. Use {@link DefaultEnhancedPojoFormatter} instead.
+ */
+@Deprecated
+<span class="fc" id="L19">public class DefaultPojoFormatter implements PojoFormatter {</span>
+<span class="fc" id="L20">  private boolean firstPropertyPrinted = false;</span>
+
+  @Override
+  public String getPropertyPrefix(PropertyElement property) {
+<span class="fc" id="L24">    StringBuilder result = new StringBuilder();</span>
+<span class="fc bfc" id="L25" title="All 2 branches covered.">    if (firstPropertyPrinted) {</span>
+<span class="fc" id="L26">      result.append(&quot;, &quot;);</span>
+    }
+    else {
+<span class="fc" id="L29">      firstPropertyPrinted = true;</span>
+    }
+<span class="fc" id="L31">    return result.append(property.getName()).append(&quot;: {&quot;).toString();</span>
+  }
+
+  @Override
+  public String getPropertySuffix(PropertyElement property) {
+<span class="fc" id="L36">    return &quot;}&quot;;</span>
+  }
+
+  @Override
+  public String getToStringPrefix(Class&lt;?&gt; pojoClass) {
+<span class="fc" id="L41">    return pojoClass.getSimpleName() + &quot;{&quot;;</span>
+  }
+
+  @Override
+  public String getToStringSuffix(Class&lt;?&gt; pojoClass) {
+<span class="fc" id="L46">    return &quot;}&quot;;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

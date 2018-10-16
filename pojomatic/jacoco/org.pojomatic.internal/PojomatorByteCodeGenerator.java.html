@@ -1,0 +1,1019 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PojomatorByteCodeGenerator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Pojomatic</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic.internal</a> &gt; <span class="el_source">PojomatorByteCodeGenerator.java</span></div><h1>PojomatorByteCodeGenerator.java</h1><pre class="source lang-java linenums">package org.pojomatic.internal;
+
+import java.lang.invoke.CallSite;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
+
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.Handle;
+import org.objectweb.asm.Label;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Type;
+import org.pojomatic.Pojomator;
+import org.pojomatic.PropertyElement;
+import org.pojomatic.annotations.PojoFormat;
+import org.pojomatic.annotations.SkipArrayCheck;
+import org.pojomatic.diff.Differences;
+import org.pojomatic.diff.NoDifferences;
+import org.pojomatic.diff.PropertyDifferences;
+import org.pojomatic.diff.ValueDifference;
+import org.pojomatic.formatter.DefaultEnhancedPojoFormatter;
+import org.pojomatic.formatter.EnhancedPojoFormatter;
+import org.pojomatic.formatter.EnhancedPropertyFormatter;
+
+import static org.objectweb.asm.Opcodes.*;
+
+class PojomatorByteCodeGenerator {
+  @Deprecated
+<span class="fc" id="L36">  private static final String ENHANCED_POJO_FORMATTER_WRAPPER_INTERNAL_NAME =</span>
+<span class="fc" id="L37">    internalName(org.pojomatic.internal.EnhancedPojoFormatterWrapper.class);</span>
+<span class="fc" id="L38">  private static final Object[] NO_STACK = new Object[] {};</span>
+<span class="fc" id="L39">  private static final String OBJECT_INTERNAL_NAME = internalName(Object.class);</span>
+<span class="fc" id="L40">  private static final String BASE_POJOMATOR_INTERNAL_NAME = internalName(BasePojomator.class);</span>
+  static final String POJO_CLASS_FIELD_NAME = &quot;pojoClass&quot;;
+  private static final String BOOTSTRAP_METHOD_NAME = &quot;bootstrap&quot;;
+
+<span class="fc" id="L44">  private static final AtomicLong counter = new AtomicLong();</span>
+
+  final String pojomatorClassName;
+  private final String pojomatorInternalClassName;
+  private final String pojomatorInternalClassDesc;
+  private final Class&lt;?&gt; pojoClass;
+  private final String pojoDescriptor;
+  private final ClassProperties classProperties;
+  private final Handle bootstrapMethod;
+<span class="fc" id="L53">  private final Map&lt;PropertyElement, Integer&gt; propertyNumbers = new HashMap&lt;&gt;();</span>
+
+  private MethodVisitor mv; // the active method visitor
+
+  /**
+   * Class for tracking adjustments to be made to the max stack and/or localvariable size
+   */
+  private static class StackAdjustments {
+    /**
+     * At least one &quot;wide&quot; property (long or double) has been encountered
+     */
+    boolean wideProperty;
+
+    int adjustments(int widePropertyWeight) {
+<span class="fc bfc" id="L67" title="All 2 branches covered.">      return (wideProperty ? widePropertyWeight : 0);</span>
+    }
+  }
+
+<span class="fc" id="L71">  PojomatorByteCodeGenerator(Class&lt;?&gt; pojoClass, ClassProperties classProperties) {</span>
+<span class="fc" id="L72">    this.pojomatorClassName = PojomatorStub.class.getName() + &quot;$&quot; + counter.incrementAndGet();</span>
+<span class="fc" id="L73">    this.pojomatorInternalClassName = internalName(pojomatorClassName);</span>
+<span class="fc" id="L74">    this.pojomatorInternalClassDesc = &quot;L&quot; + pojomatorInternalClassName + &quot;;&quot;;</span>
+<span class="fc" id="L75">    this.pojoClass = pojoClass;</span>
+<span class="fc" id="L76">    this.pojoDescriptor = classDesc(pojoClass);</span>
+<span class="fc" id="L77">    this.classProperties = classProperties;</span>
+<span class="fc" id="L78">    this.bootstrapMethod = new Handle(</span>
+      H_INVOKESTATIC,
+      BASE_POJOMATOR_INTERNAL_NAME,
+      BOOTSTRAP_METHOD_NAME,
+<span class="fc" id="L82">      methodDesc(CallSite.class, MethodHandles.Lookup.class, String.class, MethodType.class, Class.class));</span>
+<span class="fc" id="L83">    int propertyNumber = 1;</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">    for (PropertyElement property: classProperties.getAllProperties()) {</span>
+<span class="fc" id="L85">      propertyNumbers.put(property, propertyNumber++);</span>
+<span class="fc" id="L86">    }</span>
+<span class="fc" id="L87">  }</span>
+
+  byte[] makeClassBytes() {
+<span class="fc" id="L90">    ClassWriter classWriter = new ClassWriter(0);</span>
+    // acceptClassVisitor(new CheckClassAdapter(classWriter));
+<span class="fc" id="L92">    acceptClassVisitor(classWriter);</span>
+<span class="fc" id="L93">    return classWriter.toByteArray();</span>
+  }
+
+  private void acceptClassVisitor(ClassVisitor classWriter) {
+<span class="fc" id="L97">    classWriter.visit(V1_7, ACC_PUBLIC + ACC_SUPER + ACC_SYNTHETIC, pojomatorInternalClassName, null,</span>
+<span class="fc" id="L98">        BASE_POJOMATOR_INTERNAL_NAME, new String[] { internalName(Pojomator.class) });</span>
+
+<span class="fc" id="L100">    classWriter.visitSource(&quot;Look for visitLineNumber&quot;, null);</span>
+
+<span class="fc" id="L102">    makeFields(classWriter);</span>
+
+<span class="fc" id="L104">    makeConstructor(classWriter);</span>
+
+<span class="fc bfc" id="L106" title="All 2 branches covered.">    for (PropertyElement propertyElement: classProperties.getAllProperties()) {</span>
+<span class="fc" id="L107">      makeAccessor(classWriter, propertyElement);</span>
+<span class="fc" id="L108">    }</span>
+
+<span class="fc" id="L110">    makeDoEquals(classWriter);</span>
+<span class="fc" id="L111">    makeDoHashCode(classWriter);</span>
+<span class="fc" id="L112">    makeDoToString(classWriter);</span>
+<span class="fc" id="L113">    makeDoDiff(classWriter);</span>
+
+<span class="fc" id="L115">    classWriter.visitEnd();</span>
+<span class="fc" id="L116">  }</span>
+
+  private void makeFields(ClassVisitor classVisitor) {
+    //visitField(classVisitor, ACC_STATIC, POJO_CLASS_FIELD_NAME, classDesc(Class.class));
+<span class="fc bfc" id="L120" title="All 2 branches covered.">    for (PropertyElement property: classProperties.getToStringProperties()) {</span>
+<span class="fc" id="L121">      visitField(</span>
+<span class="fc" id="L122">        classVisitor, ACC_STATIC, propertyFormatterName(property), classDesc(EnhancedPropertyFormatter.class));</span>
+<span class="fc" id="L123">    }</span>
+<span class="fc bfc" id="L124" title="All 2 branches covered.">    for (PropertyElement property: classProperties.getAllProperties()) {</span>
+<span class="fc" id="L125">      visitField(</span>
+<span class="fc" id="L126">        classVisitor, ACC_STATIC, propertyElementName(property), classDesc(PropertyElement.class));</span>
+<span class="fc" id="L127">    }</span>
+<span class="fc" id="L128">  }</span>
+
+  private static void visitField(ClassVisitor classVisitor, int flags, String name, String classDescriptor) {
+<span class="fc" id="L131">    classVisitor.visitField(flags, name, classDescriptor, null, null).visitEnd();</span>
+<span class="fc" id="L132">  }</span>
+
+  /**
+   * Generate an accessor method for a property. The generated method uses InvokeDynamic, calling the method generated
+   * by {@link #makeBootstrapMethod(ClassVisitor)}
+   * @param classWriter
+   * @param propertyElement the property to generate the accessor for
+   */
+  private void makeAccessor(ClassVisitor classWriter, PropertyElement propertyElement) {
+<span class="fc" id="L141">    LocalVariable pojo = new LocalVariable(&quot;pojo&quot;, Object.class, null, 0);</span>
+<span class="fc" id="L142">    int maxStackSize = 1;</span>
+<span class="fc" id="L143">    String accessorName = propertyAccessorName(propertyElement);</span>
+<span class="fc" id="L144">    mv = classWriter.visitMethod(</span>
+<span class="fc" id="L145">      ACC_PRIVATE | ACC_STATIC, accessorName, accessorMethodDescription(propertyElement), null, null);</span>
+<span class="fc" id="L146">    mv.visitCode();</span>
+<span class="fc" id="L147">    Label start = visitNewLabel();</span>
+<span class="fc" id="L148">    pojo.acceptLoad(mv);</span>
+<span class="fc" id="L149">    visitLineNumber(4, propertyElement);</span>
+<span class="fc" id="L150">    mv.visitInvokeDynamicInsn(</span>
+<span class="fc" id="L151">      accessorName, accessorMethodDescription(propertyElement), bootstrapMethod, Type.getType(pojomatorInternalClassDesc));</span>
+<span class="fc" id="L152">    visitLineNumber(5, propertyElement);</span>
+
+    // return using the appropriate return byte code, based on type
+<span class="fc" id="L155">    Class&lt;?&gt; propertyType = propertyElement.getPropertyType();</span>
+<span class="fc bfc" id="L156" title="All 2 branches covered.">    if (propertyType.isPrimitive()) {</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">      if (propertyType == float.class) {</span>
+<span class="fc" id="L158">        mv.visitInsn(FRETURN);</span>
+      }
+<span class="fc bfc" id="L160" title="All 2 branches covered.">      else if (propertyType == long.class) {</span>
+<span class="fc" id="L161">        maxStackSize++;</span>
+<span class="fc" id="L162">        mv.visitInsn(LRETURN);</span>
+      }
+<span class="fc bfc" id="L164" title="All 2 branches covered.">      else if (propertyType == double.class) {</span>
+<span class="fc" id="L165">        maxStackSize++;</span>
+<span class="fc" id="L166">        mv.visitInsn(DRETURN);</span>
+      }
+      else {
+<span class="fc" id="L169">        mv.visitInsn(IRETURN);</span>
+      }
+    }
+    else {
+<span class="fc" id="L173">      mv.visitInsn(ARETURN);</span>
+    }
+
+<span class="fc" id="L176">    Label end = visitNewLabel();</span>
+<span class="fc" id="L177">    pojo.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L178">    mv.visitMaxs(maxStackSize, 2);</span>
+<span class="fc" id="L179">    mv.visitEnd();</span>
+<span class="fc" id="L180">  }</span>
+
+  private void makeConstructor(ClassVisitor cw) {
+<span class="fc" id="L183">    LocalVariable varThis = new LocalVariable(&quot;this&quot;, pojomatorInternalClassDesc, null, 0);</span>
+<span class="fc" id="L184">    LocalVariable varPojoClass = new LocalVariable(POJO_CLASS_FIELD_NAME, Class.class, null, 1);</span>
+<span class="fc" id="L185">    LocalVariable varClassProperties = new LocalVariable(&quot;classProperties&quot;, ClassProperties.class, null, 2);</span>
+<span class="fc" id="L186">    mv = cw.visitMethod(ACC_PUBLIC, &quot;&lt;init&gt;&quot;, methodDesc(void.class, Class.class, ClassProperties.class), null, null);</span>
+<span class="fc" id="L187">    mv.visitCode();</span>
+<span class="fc" id="L188">    Label start = visitNewLabel();</span>
+<span class="fc" id="L189">    varThis.acceptLoad(mv);</span>
+<span class="fc" id="L190">    varPojoClass.acceptLoad(mv);</span>
+<span class="fc" id="L191">    varClassProperties.acceptLoad(mv);</span>
+<span class="fc" id="L192">    visitLineNumber(6, null);</span>
+<span class="fc" id="L193">    construct(BasePojomator.class, Class.class, ClassProperties.class);</span>
+<span class="fc" id="L194">    mv.visitInsn(RETURN);</span>
+<span class="fc" id="L195">    Label end = visitNewLabel();</span>
+<span class="fc" id="L196">    varThis.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L197">    varPojoClass.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L198">    varClassProperties.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L199">    mv.visitMaxs(3, 3);</span>
+<span class="fc" id="L200">    mv.visitEnd();</span>
+<span class="fc" id="L201">  }</span>
+
+  /**
+   * Generate the {@link Pojomator#doEquals(Object, Object)} method.
+   * @param cw
+   */
+  private void makeDoEquals(ClassVisitor cw) {
+<span class="fc" id="L208">    LocalVariable varThis = new LocalVariable(&quot;this&quot;, pojomatorInternalClassDesc, null, 0);</span>
+<span class="fc" id="L209">    LocalVariable varPojo1 = new LocalVariable(&quot;pojo1&quot;, pojoClass, pojoDescriptor, 1);</span>
+<span class="fc" id="L210">    LocalVariable varPojo2 = new LocalVariable(&quot;pojo2&quot;, pojoClass, pojoDescriptor, 2);</span>
+
+<span class="fc" id="L212">    StackAdjustments stackAdjustments = new StackAdjustments();</span>
+
+<span class="fc" id="L214">    Object[] localVars = new Object[] {pojomatorInternalClassName, OBJECT_INTERNAL_NAME, OBJECT_INTERNAL_NAME};</span>
+
+<span class="fc" id="L216">    mv = cw.visitMethod(ACC_PUBLIC, &quot;doEquals&quot;, methodDesc(boolean.class, Object.class, Object.class), null, null);</span>
+
+    // where to jump if we should return false
+<span class="fc" id="L219">    Label returnFalse = new Label();</span>
+    // where to jump if we determine that pojo1 and pojo2 have types which are compatible for equality
+<span class="fc" id="L221">    Label compatibleTypes = new Label();</span>
+
+<span class="fc" id="L223">    mv.visitCode();</span>
+<span class="fc" id="L224">    Label start = visitNewLabel();</span>
+<span class="fc" id="L225">    varPojo1.acceptLoad(mv);</span>
+<span class="fc" id="L226">    visitLineNumber(7, null);</span>
+<span class="fc" id="L227">    checkNotNull();</span>
+<span class="fc" id="L228">    varPojo2.acceptLoad(mv);</span>
+<span class="fc" id="L229">    visitLineNumber(8, null);</span>
+<span class="fc" id="L230">    Label notSameInstance = new Label();</span>
+<span class="fc" id="L231">    mv.visitJumpInsn(IF_ACMPNE, notSameInstance);</span>
+
+    // same instance; return true
+<span class="fc" id="L234">    mv.visitInsn(ICONST_1);</span>
+<span class="fc" id="L235">    mv.visitInsn(IRETURN);</span>
+
+<span class="fc" id="L237">    mv.visitLabel(notSameInstance);</span>
+
+    // if other is null, return false.
+<span class="fc" id="L240">    mv.visitFrame(F_FULL, 3, localVars, 0, NO_STACK);</span>
+<span class="fc" id="L241">    visitLineNumber(9, null);</span>
+<span class="fc" id="L242">    varPojo2.acceptLoad(mv);</span>
+<span class="fc" id="L243">    mv.visitJumpInsn(IFNULL, returnFalse);</span>
+
+    // common case: if both types are the same, they are compatible for equality
+<span class="fc" id="L246">    varThis.acceptLoad(mv);</span>
+<span class="fc" id="L247">    visitLineNumber(10, null);</span>
+<span class="fc" id="L248">    invokeVirtual(Object.class, &quot;getClass&quot;, Class.class);</span>
+<span class="fc" id="L249">    varPojo1.acceptLoad(mv);</span>
+<span class="fc" id="L250">    visitLineNumber(11, null);</span>
+<span class="fc" id="L251">    invokeVirtual(Object.class, &quot;getClass&quot;, Class.class);</span>
+<span class="fc" id="L252">    mv.visitJumpInsn(IF_ACMPEQ, compatibleTypes);</span>
+
+    // types are not the same; check for compatibility
+<span class="fc" id="L255">    varThis.acceptLoad(mv);</span>
+<span class="fc" id="L256">    varPojo2.acceptLoad(mv);</span>
+<span class="fc" id="L257">    visitLineNumber(12, null);</span>
+<span class="fc" id="L258">    invokeVirtual(Object.class, &quot;getClass&quot;, Class.class);</span>
+<span class="fc" id="L259">    visitLineNumber(13, null);</span>
+<span class="fc" id="L260">    invokeVirtual(BasePojomator.class, &quot;isCompatibleForEquality&quot;, boolean.class, Class.class);</span>
+<span class="fc" id="L261">    mv.visitJumpInsn(IFEQ, returnFalse);</span>
+
+    // types are compatible, so start comparing properties
+<span class="fc" id="L264">    mv.visitLabel(compatibleTypes);</span>
+<span class="fc" id="L265">    mv.visitFrame(F_FULL, 3, localVars, 0, NO_STACK);</span>
+
+    // Compare properties
+<span class="fc bfc" id="L268" title="All 2 branches covered.">    for(PropertyElement propertyElement: classProperties.getEqualsProperties()) {</span>
+<span class="fc" id="L269">      visitLineNumber(14, propertyElement);</span>
+<span class="fc" id="L270">      visitAccessorAndConvert(varPojo1, propertyElement);</span>
+<span class="fc" id="L271">      visitLineNumber(15, propertyElement);</span>
+<span class="fc" id="L272">      visitAccessorAndConvert(varPojo2, propertyElement);</span>
+<span class="fc" id="L273">      visitLineNumber(16, propertyElement);</span>
+<span class="fc" id="L274">      compareProperties(mv, returnFalse, propertyElement, stackAdjustments);</span>
+<span class="fc" id="L275">    }</span>
+    // If we have gotten this far, all properties are equal, so return true.
+<span class="fc" id="L277">    mv.visitInsn(ICONST_1);</span>
+<span class="fc" id="L278">    mv.visitInsn(IRETURN);</span>
+
+<span class="fc" id="L280">    mv.visitLabel(returnFalse);</span>
+<span class="fc" id="L281">    mv.visitFrame(F_FULL, 3, localVars, 0, NO_STACK);</span>
+<span class="fc" id="L282">    mv.visitInsn(ICONST_0);</span>
+<span class="fc" id="L283">    mv.visitInsn(IRETURN);</span>
+
+<span class="fc" id="L285">    Label end = visitNewLabel();</span>
+<span class="fc" id="L286">    varThis.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L287">    varPojo1.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L288">    varPojo2.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L289">    mv.visitMaxs(2 + stackAdjustments.adjustments(2), 3);</span>
+<span class="fc" id="L290">    mv.visitEnd();</span>
+<span class="fc" id="L291">  }</span>
+
+  /**
+   * Compare a property from each pojo. It is assumed when this method is called that both property values have been
+   * loaded onto the stack. In the event the property value is a float or double, it is further assumed that it has
+   * been converted to an int or long.
+   * @param mv
+   * @param notEqualLabel where to jump if the property values are not equal
+   * @param propertyElement the property being compared
+   * @param stackAdjustments adjustments to be made to the max stack size, based on property type
+   */
+  private void compareProperties(
+      MethodVisitor mv, Label notEqualLabel, PropertyElement propertyElement, StackAdjustments stackAdjustments) {
+<span class="fc" id="L304">    Class&lt;?&gt; propertyType = propertyElement.getPropertyType();</span>
+<span class="fc bfc" id="L305" title="All 2 branches covered.">    if (propertyType.isPrimitive()) {</span>
+<span class="fc bfc" id="L306" title="All 2 branches covered.">      if (isWide(propertyElement)) {</span>
+<span class="fc" id="L307">        stackAdjustments.wideProperty = true;</span>
+<span class="fc" id="L308">        mv.visitInsn(LCMP);</span>
+<span class="fc" id="L309">        mv.visitJumpInsn(IFNE, notEqualLabel);</span>
+      }
+      else {
+<span class="fc" id="L312">        mv.visitJumpInsn(IF_ICMPNE, notEqualLabel);</span>
+      }
+    }
+    else {
+<span class="fc bfc" id="L316" title="All 2 branches covered.">      if(propertyType.isArray()) {</span>
+<span class="fc" id="L317">        Class&lt;?&gt; componentType = propertyType.getComponentType();</span>
+<span class="fc bfc" id="L318" title="All 2 branches covered.">        if (componentType.isPrimitive()) {</span>
+<span class="fc" id="L319">          visitLineNumber(17, propertyElement);</span>
+<span class="fc" id="L320">          invokeStatic(Arrays.class, &quot;equals&quot;,boolean.class, propertyType, propertyType);</span>
+        }
+        else {
+<span class="fc" id="L323">          visitLineNumber(18, propertyElement);</span>
+<span class="fc" id="L324">          invokeStatic(BasePojomator.class, &quot;compareArrays&quot;, boolean.class, Object.class, Object.class);</span>
+        }
+<span class="fc" id="L326">      }</span>
+      else {
+<span class="fc bfc" id="L328" title="All 2 branches covered.">        if (isObjectPossiblyHoldingArray(propertyElement)) {</span>
+<span class="fc" id="L329">          visitLineNumber(19, propertyElement);</span>
+<span class="fc" id="L330">          invokeStatic(BasePojomator.class, &quot;areObjectValuesEqual&quot;, boolean.class, Object.class, Object.class);</span>
+        }
+        else {
+<span class="fc" id="L333">          visitLineNumber(20, propertyElement);</span>
+<span class="fc" id="L334">          invokeStatic(Objects.class,  &quot;equals&quot;, boolean.class, Object.class, Object.class);</span>
+        }
+      }
+<span class="fc" id="L337">      mv.visitJumpInsn(IFEQ, notEqualLabel);</span>
+    }
+<span class="fc" id="L339">  }</span>
+
+  /**
+   * Generate the {@link Pojomator#doHashCode(Object)} method.
+   * @param cw
+   */
+  private void makeDoHashCode(ClassVisitor cw) {
+<span class="fc" id="L346">    LocalVariable varThis = new LocalVariable(&quot;this&quot;, pojomatorInternalClassDesc, null, 0);</span>
+<span class="fc" id="L347">    LocalVariable varPojo = new LocalVariable(&quot;pojo&quot;, pojoClass, pojoDescriptor, 1);</span>
+
+<span class="fc" id="L349">    int longOrDoubleStackAdjustment = 0;</span>
+<span class="fc" id="L350">    Object[] localVars = new Object[] {pojomatorInternalClassName, OBJECT_INTERNAL_NAME};</span>
+
+<span class="fc" id="L352">    mv = cw.visitMethod(ACC_PUBLIC, &quot;doHashCode&quot;, methodDesc(int.class, Object.class), null, null);</span>
+<span class="fc" id="L353">    mv.visitCode();</span>
+<span class="fc" id="L354">    Label start = visitNewLabel();</span>
+<span class="fc" id="L355">    visitLineNumber(21, null);</span>
+<span class="fc" id="L356">    varPojo.acceptLoad(mv);</span>
+<span class="fc" id="L357">    visitLineNumber(22, null);</span>
+<span class="fc" id="L358">    checkNotNullPop();</span>
+
+    //algorithm:
+    // hashCode(prop_n) + 31 * (hashCode(prop_n-1) + 31 * ( ... (hashCode(prop_1) + 31 * 1) ... ))
+
+<span class="fc" id="L363">    mv.visitInsn(ICONST_1); // this will just be multiplied by 31; let the optimizer take care of it</span>
+
+<span class="fc bfc" id="L365" title="All 2 branches covered.">    for(PropertyElement propertyElement: classProperties.getHashCodeProperties()) {</span>
+      // multiply what we have so far by 31.
+<span class="fc" id="L367">      visitLineNumber(23, propertyElement);</span>
+<span class="fc" id="L368">      mv.visitIntInsn(BIPUSH, 31);</span>
+<span class="fc" id="L369">      visitLineNumber(24, propertyElement);</span>
+<span class="fc" id="L370">      mv.visitInsn(IMUL);</span>
+
+<span class="fc" id="L372">      visitLineNumber(25, propertyElement);</span>
+<span class="fc" id="L373">      visitAccessorAndConvert(varPojo, propertyElement); // grab the property value, converting a float or double</span>
+<span class="fc" id="L374">      Class&lt;?&gt; propertyType = propertyElement.getPropertyType();</span>
+<span class="fc bfc" id="L375" title="All 2 branches covered.">      if (propertyType.isPrimitive()) {</span>
+        // need to compute the hash code for this primitive value, based on its type
+<span class="pc bpc" id="L377" title="1 of 4 branches missed.">        switch (propertyType.getName()) {</span>
+          case &quot;boolean&quot;:
+<span class="fc" id="L379">            visitLineNumber(26, propertyElement);</span>
+<span class="fc" id="L380">            Label ifeq = new Label();</span>
+<span class="fc" id="L381">            mv.visitJumpInsn(IFEQ, ifeq);</span>
+<span class="fc" id="L382">            mv.visitIntInsn(SIPUSH, Boolean.TRUE.hashCode());</span>
+<span class="fc" id="L383">            Label hashCodeDetermined = new Label();</span>
+<span class="fc" id="L384">            mv.visitJumpInsn(GOTO, hashCodeDetermined);</span>
+<span class="fc" id="L385">            mv.visitLabel(ifeq);</span>
+<span class="fc" id="L386">            mv.visitFrame(F_FULL, 2, localVars, 1, new Object[] {INTEGER});</span>
+<span class="fc" id="L387">            mv.visitIntInsn(SIPUSH, Boolean.FALSE.hashCode());</span>
+<span class="fc" id="L388">            mv.visitLabel(hashCodeDetermined);</span>
+<span class="fc" id="L389">            mv.visitFrame(F_FULL, 2, localVars, 2, new Object[] {INTEGER, INTEGER});</span>
+<span class="fc" id="L390">            break;</span>
+          case &quot;byte&quot;:
+          case &quot;char&quot;:
+          case &quot;int&quot;:
+          case &quot;short&quot;:
+          case &quot;float&quot;:
+<span class="fc" id="L396">            break; // already an int (from the JVM's point of view)</span>
+          case &quot;double&quot;:
+          case &quot;long&quot;:
+<span class="fc" id="L399">            longOrDoubleStackAdjustment = 3; // one extra for the field, two extra for the dup to do an xor</span>
+
+            // compute bits ^ (bits &gt;&gt; 32)
+
+<span class="fc" id="L403">            visitLineNumber(27, propertyElement);</span>
+            // we'll need a second copy to do the xor:
+<span class="fc" id="L405">            mv.visitInsn(DUP2);</span>
+            // bitshift 32 right:
+<span class="fc" id="L407">            mv.visitIntInsn(BIPUSH, 32);</span>
+<span class="fc" id="L408">            mv.visitInsn(LUSHR);</span>
+            // xor with the original
+<span class="fc" id="L410">            mv.visitInsn(LXOR);</span>
+            // chop of the high 32 bits
+<span class="fc" id="L412">            mv.visitInsn(L2I);</span>
+<span class="fc" id="L413">            break;</span>
+          default:
+<span class="pc" id="L415">            throw new IllegalStateException(&quot;unknown primitive type &quot; + propertyType.getName());</span>
+        }
+      }
+      else {
+<span class="fc" id="L419">        Label ifNonNull = new Label();</span>
+<span class="fc" id="L420">        Label hashCodeDetermined = new Label();</span>
+
+<span class="fc" id="L422">        mv.visitInsn(DUP); // if it is non-null, let's not have to get it a second time.</span>
+<span class="fc" id="L423">        mv.visitJumpInsn(IFNONNULL, ifNonNull);</span>
+        // it's null
+<span class="fc" id="L425">        mv.visitInsn(POP); // won't need that duped copy after all</span>
+<span class="fc" id="L426">        mv.visitInsn(ICONST_0);</span>
+<span class="fc" id="L427">        mv.visitJumpInsn(GOTO, hashCodeDetermined);</span>
+
+        // it's not null
+<span class="fc" id="L430">        mv.visitLabel(ifNonNull);</span>
+<span class="fc" id="L431">        mv.visitFrame(</span>
+<span class="fc" id="L432">          F_FULL, 2, localVars, 2, new Object[] {INTEGER, Type.getInternalName(effectiveType(propertyType))});</span>
+
+<span class="fc bfc" id="L434" title="All 2 branches covered.">        if(propertyType.isArray()) {</span>
+<span class="fc" id="L435">          visitLineNumber(28, propertyElement);</span>
+
+<span class="fc" id="L437">          invokeStatic(</span>
+            Arrays.class,
+<span class="fc bfc" id="L439" title="All 2 branches covered.">            isDeepArray(propertyType) ? &quot;deepHashCode&quot; : &quot;hashCode&quot;,</span>
+              int.class,
+<span class="fc bfc" id="L441" title="All 2 branches covered.">              propertyType.getComponentType().isPrimitive() ? propertyType : Object[].class);</span>
+        }
+<span class="fc bfc" id="L443" title="All 2 branches covered.">        else if (isObjectPossiblyHoldingArray(propertyElement)) {</span>
+          // it *could* be an array; if so, we want to do an array hashCode.
+
+<span class="fc" id="L446">          mv.visitInsn(DUP); // we'll still want the property value handy after calling getClass().isArray()</span>
+<span class="fc" id="L447">          invokeVirtual(Object.class, &quot;getClass&quot;, Class.class);</span>
+<span class="fc" id="L448">          visitLineNumber(29, propertyElement);</span>
+<span class="fc" id="L449">          invokeVirtual(Class.class, &quot;isArray&quot;, boolean.class);</span>
+<span class="fc" id="L450">          Label isArray = new Label();</span>
+<span class="fc" id="L451">          mv.visitJumpInsn(IFNE, isArray); // if true</span>
+
+          // regular old hashCode
+<span class="fc" id="L454">          visitLineNumber(30, propertyElement);</span>
+<span class="fc" id="L455">          invokeVirtual(Object.class, &quot;hashCode&quot;, int.class);</span>
+<span class="fc" id="L456">          mv.visitJumpInsn(GOTO, hashCodeDetermined);</span>
+
+          // add a deep parameter to arrayHashCode, like we did for compareProperties
+<span class="fc" id="L459">          mv.visitLabel(isArray);</span>
+<span class="fc" id="L460">          mv.visitFrame(F_FULL, 2, localVars, 2, new Object[] { INTEGER, Type.getInternalName(propertyType) });</span>
+
+<span class="fc" id="L462">          mv.visitInsn(ICONST_1);</span>
+<span class="fc" id="L463">          visitLineNumber(31, propertyElement);</span>
+<span class="fc" id="L464">          invokeStatic(BasePojomator.class, &quot;arrayHashCode&quot;, int.class, Object.class, boolean.class);</span>
+<span class="fc" id="L465">        }</span>
+        else {
+<span class="fc" id="L467">          visitLineNumber(32, propertyElement);</span>
+<span class="fc" id="L468">          invokeVirtual(Object.class, &quot;hashCode&quot;, int.class);</span>
+        }
+
+<span class="fc" id="L471">        mv.visitLabel(hashCodeDetermined);</span>
+<span class="fc" id="L472">        mv.visitFrame(F_FULL, 2, localVars, 2, new Object[] {INTEGER, INTEGER});</span>
+      }
+      // add result to what we have so far
+<span class="fc" id="L475">      mv.visitInsn(IADD);</span>
+<span class="fc" id="L476">    }</span>
+<span class="fc" id="L477">    mv.visitInsn(IRETURN);</span>
+<span class="fc" id="L478">    Label end = visitNewLabel();</span>
+<span class="fc" id="L479">    varThis.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L480">    varPojo.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L481">    mv.visitMaxs(3 + longOrDoubleStackAdjustment, 2);</span>
+<span class="fc" id="L482">    mv.visitEnd();</span>
+<span class="fc" id="L483">  }</span>
+
+  /**
+   * Generate {@link Pojomator#doToString(Object)}
+   * @param cw
+   */
+  private void makeDoToString(ClassVisitor cw) {
+<span class="fc" id="L490">    int longOrDoubleStackAdjustment = 1;</span>
+<span class="fc" id="L491">    LocalVariable varThis = new LocalVariable(&quot;this&quot;, pojomatorInternalClassDesc, null, 0);</span>
+<span class="fc" id="L492">    LocalVariable varPojo = new LocalVariable(&quot;pojo&quot;, pojoClass, null, 1);</span>
+<span class="fc" id="L493">    LocalVariable varPojoFormatter=</span>
+<span class="fc" id="L494">      new LocalVariable(&quot;pojoFormattor&quot;, classDesc(EnhancedPojoFormatter.class), null, 2);</span>
+<span class="fc" id="L495">    LocalVariable varBuilder= new LocalVariable(&quot;builder&quot;, classDesc(String.class), null, 3);</span>
+
+<span class="fc" id="L497">    mv = cw.visitMethod(ACC_PUBLIC, &quot;doToString&quot;, methodDesc(String.class, Object.class), null, null);</span>
+<span class="fc" id="L498">    mv.visitCode();</span>
+<span class="fc" id="L499">    Label start = visitNewLabel();</span>
+<span class="fc" id="L500">    varPojo.acceptLoad(mv);</span>
+<span class="fc" id="L501">    checkNotNullPop();</span>
+
+<span class="fc" id="L503">    constructEnhancedPojoFormatter();</span>
+<span class="fc" id="L504">    varPojoFormatter.acceptStore(mv);</span>
+
+<span class="fc" id="L506">    visitLineNumber(33, null);</span>
+<span class="fc" id="L507">    mv.visitTypeInsn(NEW, internalName(StringBuilder.class));</span>
+<span class="fc" id="L508">    mv.visitInsn(DUP);</span>
+<span class="fc" id="L509">    construct(StringBuilder.class);</span>
+<span class="fc" id="L510">    varBuilder.acceptStore(mv);</span>
+
+<span class="fc" id="L512">    varPojoFormatter.acceptLoad(mv);</span>
+<span class="fc" id="L513">    varBuilder.acceptLoad(mv);</span>
+<span class="fc" id="L514">    loadPojoClass(varThis);</span>
+
+<span class="fc" id="L516">    visitLineNumber(34, null);</span>
+
+<span class="fc" id="L518">    invokeInterface(EnhancedPojoFormatter.class,  &quot;appendToStringPrefix&quot;, void.class, StringBuilder.class, Class.class);</span>
+
+<span class="fc bfc" id="L520" title="All 2 branches covered.">    for(PropertyElement propertyElement: classProperties.getToStringProperties()) {</span>
+<span class="fc bfc" id="L521" title="All 2 branches covered.">      if (isWide(propertyElement)) {</span>
+<span class="fc" id="L522">        longOrDoubleStackAdjustment = 1; // having any double-wide values on our stack increases max stack depth by one</span>
+      }
+
+      // append the property prefix
+<span class="fc" id="L526">      varPojoFormatter.acceptLoad(mv);</span>
+<span class="fc" id="L527">      varBuilder.acceptLoad(mv);</span>
+<span class="fc" id="L528">      visitLineNumber(35, propertyElement);</span>
+<span class="fc" id="L529">      loadPropertyElementField(propertyElement);</span>
+<span class="fc" id="L530">      visitLineNumber(36, propertyElement);</span>
+<span class="fc" id="L531">      invokeInterface(</span>
+        EnhancedPojoFormatter.class, &quot;appendPropertyPrefix&quot;, void.class, StringBuilder.class, PropertyElement.class);
+
+      // get the propertyFormatter for this property
+<span class="fc" id="L535">      visitLineNumber(37, propertyElement);</span>
+<span class="fc" id="L536">      mv.visitFieldInsn(</span>
+        GETSTATIC,
+        pojomatorInternalClassName,
+<span class="fc" id="L539">        propertyFormatterName(propertyElement),</span>
+<span class="fc" id="L540">        classDesc(EnhancedPropertyFormatter.class));</span>
+
+      // The propertyFormatter will format the property value and append the results to our StringBuilder
+<span class="fc" id="L543">      varBuilder.acceptLoad(mv);</span>
+<span class="fc" id="L544">      visitLineNumber(38, propertyElement);</span>
+<span class="fc" id="L545">      visitAccessor(varPojo, propertyElement);</span>
+<span class="fc" id="L546">      Class&lt;?&gt; appendType = appendFormattedType(propertyElement.getPropertyType());</span>
+<span class="fc bfc" id="L547" title="All 2 branches covered.">      if (isObjectPossiblyHoldingArray(propertyElement)) {</span>
+<span class="fc" id="L548">        visitLineNumber(39, propertyElement);</span>
+<span class="fc" id="L549">        invokeInterface(</span>
+          EnhancedPropertyFormatter.class, &quot;appendFormattedPossibleArray&quot;, void.class, StringBuilder.class, appendType);
+      }
+      else {
+<span class="fc" id="L553">        visitLineNumber(40, propertyElement);</span>
+<span class="fc" id="L554">        invokeInterface(</span>
+          EnhancedPropertyFormatter.class,  &quot;appendFormatted&quot;, void.class, StringBuilder.class, appendType);
+      }
+
+      // have any property suffix appended to the StringBuilder
+<span class="fc" id="L559">      varPojoFormatter.acceptLoad(mv);</span>
+<span class="fc" id="L560">      varBuilder.acceptLoad(mv);</span>
+<span class="fc" id="L561">      visitLineNumber(41, propertyElement);</span>
+<span class="fc" id="L562">      loadPropertyElementField(propertyElement);</span>
+<span class="fc" id="L563">      visitLineNumber(42, propertyElement);</span>
+<span class="fc" id="L564">      invokeInterface(</span>
+        EnhancedPojoFormatter.class,  &quot;appendPropertySuffix&quot;, void.class, StringBuilder.class, PropertyElement.class);
+<span class="fc" id="L566">    }</span>
+
+    // Have any toString suffix appended
+<span class="fc" id="L569">    varPojoFormatter.acceptLoad(mv);</span>
+<span class="fc" id="L570">    varBuilder.acceptLoad(mv);</span>
+<span class="fc" id="L571">    loadPojoClass(varThis);</span>
+<span class="fc" id="L572">    visitLineNumber(43, null);</span>
+<span class="fc" id="L573">    invokeInterface(EnhancedPojoFormatter.class,  &quot;appendToStringSuffix&quot;, void.class, StringBuilder.class, Class.class);</span>
+
+    // invoke toString and return the result
+<span class="fc" id="L576">    varBuilder.acceptLoad(mv);</span>
+<span class="fc" id="L577">    visitLineNumber(44, null);</span>
+<span class="fc" id="L578">    invokeVirtual(StringBuilder.class, &quot;toString&quot;, String.class);</span>
+<span class="fc" id="L579">    mv.visitInsn(ARETURN);</span>
+
+<span class="fc" id="L581">    Label end = visitNewLabel();</span>
+<span class="fc" id="L582">    varThis.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L583">    varPojo.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L584">    varPojoFormatter.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L585">    varBuilder.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L586">    mv.visitMaxs(3 + longOrDoubleStackAdjustment, 4);</span>
+<span class="fc" id="L587">    mv.visitEnd();</span>
+<span class="fc" id="L588">  }</span>
+
+  private static Class&lt;?&gt; appendFormattedType(Class&lt;?&gt; propertyType) {
+<span class="fc bfc" id="L591" title="All 2 branches covered.">    if (propertyType.isPrimitive()) {</span>
+<span class="fc" id="L592">      return propertyType;</span>
+    }
+<span class="fc bfc" id="L594" title="All 2 branches covered.">    else if (propertyType.isArray()) {</span>
+<span class="fc bfc" id="L595" title="All 2 branches covered.">      return propertyType.getComponentType().isPrimitive() ? propertyType : Object[].class;</span>
+    }
+    else {
+<span class="fc" id="L598">      return Object.class;</span>
+    }
+  }
+
+  private void loadPropertyElementField(PropertyElement propertyElement) {
+<span class="fc" id="L603">    mv.visitFieldInsn(</span>
+      GETSTATIC,
+      pojomatorInternalClassName,
+<span class="fc" id="L606">      propertyElementName(propertyElement),</span>
+<span class="fc" id="L607">      classDesc(PropertyElement.class));</span>
+<span class="fc" id="L608">  }</span>
+
+  /**
+   * Construct the pojoFormatter to use. This method will contribute 2 or 4 to the max stack depth,
+   * depending on whether the pojoFormatter implements {@link EnhancedPojoFormatter} or not.
+   */
+  @SuppressWarnings(&quot;deprecation&quot;)
+  private void constructEnhancedPojoFormatter() {
+<span class="fc" id="L616">    PojoFormat format = pojoClass.getAnnotation(PojoFormat.class);</span>
+<span class="fc bfc" id="L617" title="All 2 branches covered.">    if (format == null) {</span>
+<span class="fc" id="L618">      mv.visitTypeInsn(NEW, internalName(DefaultEnhancedPojoFormatter.class));</span>
+<span class="fc" id="L619">      mv.visitInsn(DUP);</span>
+<span class="fc" id="L620">      visitLineNumber(45, null);</span>
+<span class="fc" id="L621">      construct(DefaultEnhancedPojoFormatter.class);</span>
+    }
+    else {
+<span class="fc" id="L624">      Class&lt;? extends org.pojomatic.formatter.PojoFormatter&gt; pojoFormatterClass = format.value();</span>
+      // if it isn't an enhanced formatter, we'll need to wrap it a EnhancedPojoFormatter. If we do this, we'll first
+      // invoke new on the wrapper, then construct the underlying formatter, then call the constructor on the wrapper.
+<span class="fc" id="L627">      boolean isEnhancedFormatter = EnhancedPojoFormatter.class.isAssignableFrom(pojoFormatterClass);</span>
+<span class="fc bfc" id="L628" title="All 2 branches covered.">      if (! isEnhancedFormatter) {</span>
+<span class="fc" id="L629">        visitLineNumber(46, null);</span>
+<span class="fc" id="L630">        mv.visitTypeInsn(NEW, ENHANCED_POJO_FORMATTER_WRAPPER_INTERNAL_NAME);</span>
+<span class="fc" id="L631">        mv.visitInsn(DUP);</span>
+      }
+<span class="fc" id="L633">      mv.visitTypeInsn(NEW, internalName(pojoFormatterClass));</span>
+<span class="fc" id="L634">      mv.visitInsn(DUP);</span>
+<span class="fc" id="L635">      visitLineNumber(47, null);</span>
+<span class="fc" id="L636">      construct(pojoFormatterClass);</span>
+<span class="fc bfc" id="L637" title="All 2 branches covered.">      if (! isEnhancedFormatter) {</span>
+<span class="fc" id="L638">        visitLineNumber(48, null);</span>
+<span class="fc" id="L639">        construct(</span>
+          org.pojomatic.internal.EnhancedPojoFormatterWrapper.class, org.pojomatic.formatter.PojoFormatter.class);
+      }
+    }
+<span class="fc" id="L643">  }</span>
+
+  /**
+   * Load a reference to the pojo class. We cannot refer to this directly, since the class may not be visible to us,
+   * so instead, we refer to the instance variable in {@link BasePojomator}.
+   * @param varThis the &quot;this&quot; local variable.
+   */
+  private void loadPojoClass(LocalVariable varThis) {
+<span class="fc" id="L651">    visitLineNumber(49, null);</span>
+<span class="fc" id="L652">    varThis.acceptLoad(mv);</span>
+<span class="fc" id="L653">    mv.visitFieldInsn(GETFIELD, BASE_POJOMATOR_INTERNAL_NAME, POJO_CLASS_FIELD_NAME, classDesc(Class.class));</span>
+    //mv.visitFieldInsn(GETSTATIC, pojomatorInternalClassName, POJO_CLASS_FIELD_NAME, classDesc(Class.class));
+<span class="fc" id="L655">  }</span>
+
+  /**
+   * Generate {@link Pojomator#doDiff(Object, Object)}
+   * @param cw
+   */
+  private void makeDoDiff(ClassVisitor cw) {
+<span class="fc" id="L662">    LocalVariable varThis = new LocalVariable(&quot;this&quot;, pojomatorInternalClassDesc, null, 0);</span>
+<span class="fc" id="L663">    LocalVariable varPojo1 = new LocalVariable(&quot;instance&quot;, pojoClass, pojoDescriptor, 1);</span>
+<span class="fc" id="L664">    LocalVariable varPojo2 = new LocalVariable(&quot;other&quot;, pojoClass, pojoDescriptor, 2);</span>
+<span class="fc" id="L665">    LocalVariable varDifferencesList = new LocalVariable(</span>
+      &quot;differences&quot;, List.class, &quot;Ljava/util/List&lt;Lorg/pojomatic/diff/Difference;&gt;;&quot;, 3);
+
+<span class="fc" id="L668">    StackAdjustments stackAdjustments = new StackAdjustments();</span>
+<span class="fc" id="L669">    Object[] localVarTypes = new Object[] {</span>
+<span class="fc" id="L670">      pojomatorInternalClassName, OBJECT_INTERNAL_NAME, OBJECT_INTERNAL_NAME, internalName(List.class), null, null };</span>
+
+<span class="fc" id="L672">    mv = cw.visitMethod(ACC_PUBLIC, &quot;doDiff&quot;, methodDesc(Differences.class, Object.class, Object.class), null, null);</span>
+<span class="fc" id="L673">    mv.visitCode();</span>
+<span class="fc" id="L674">    Label start = visitNewLabel();</span>
+<span class="fc" id="L675">    varPojo1.acceptLoad(mv);</span>
+<span class="fc" id="L676">    visitLineNumber(50, null);</span>
+<span class="fc" id="L677">    checkNotNull(&quot;instance is null&quot;);</span>
+<span class="fc" id="L678">    varPojo2.acceptLoad(mv);</span>
+<span class="fc" id="L679">    checkNotNull(&quot;other is null&quot;);</span>
+
+    // If instance and other are the same object, then return NoDifferences.getInstance();
+<span class="fc" id="L682">    Label notSameInstance = new Label();</span>
+<span class="fc" id="L683">    mv.visitJumpInsn(IF_ACMPNE, notSameInstance);</span>
+<span class="fc" id="L684">    invokeStatic(NoDifferences.class, &quot;getInstance&quot;, NoDifferences.class);</span>
+<span class="fc" id="L685">    mv.visitInsn(ARETURN);</span>
+
+    // not the same instance, some work to do
+<span class="fc" id="L688">    mv.visitLabel(notSameInstance);</span>
+<span class="fc" id="L689">    mv.visitFrame(F_FULL, 3, localVarTypes, 0, NO_STACK);</span>
+<span class="fc" id="L690">    visitLineNumber(51, null);</span>
+<span class="fc" id="L691">    checkCompatibleForEquality(varThis, varPojo1, &quot;instance&quot;);</span>
+<span class="fc" id="L692">    visitLineNumber(52, null);</span>
+<span class="fc" id="L693">    checkCompatibleForEquality(varThis, varPojo2, &quot;other&quot;);</span>
+
+<span class="fc" id="L695">    Label makeDiferences = notSameInstance;</span>
+<span class="fc" id="L696">    mv.visitTypeInsn(NEW, &quot;java/util/ArrayList&quot;);</span>
+<span class="fc" id="L697">    mv.visitInsn(DUP);</span>
+<span class="fc" id="L698">    construct(ArrayList.class);</span>
+<span class="fc" id="L699">    varDifferencesList.acceptStore(mv);</span>
+
+<span class="fc" id="L701">    List&lt;LocalVariable&gt; propertyVariables = new ArrayList&lt;&gt;(); // these will occur in a block scope</span>
+    // compare properties
+<span class="fc bfc" id="L703" title="All 2 branches covered.">    for(PropertyElement propertyElement: classProperties.getHashCodeProperties()) {</span>
+<span class="fc bfc" id="L704" title="All 2 branches covered.">      int width = isWide(propertyElement) ? 2 : 1;</span>
+<span class="fc" id="L705">      Class&lt;?&gt; propertyType = propertyElement.getPropertyType();</span>
+<span class="fc" id="L706">      LocalVariable varProp1 = new LocalVariable(</span>
+<span class="fc" id="L707">        &quot;property_&quot; + propertyElement.getName() + &quot;_1&quot;, propertyType, null, 4);</span>
+      //If the type is long or double, we need to store the next var at 6, not 5.
+<span class="fc" id="L709">      LocalVariable varProp2 = new LocalVariable(</span>
+<span class="fc" id="L710">        &quot;property_&quot; + propertyElement.getName() + &quot;_2&quot;, propertyType, null, 4 + width);</span>
+<span class="fc" id="L711">      propertyVariables.add(varProp1);</span>
+<span class="fc" id="L712">      propertyVariables.add(varProp2);</span>
+
+<span class="fc" id="L714">      Label blockStart = visitNewLabel();</span>
+
+<span class="fc" id="L716">      visitLineNumber(53, propertyElement);</span>
+<span class="fc" id="L717">      visitAccessor(varPojo1, propertyElement);</span>
+<span class="fc" id="L718">      varProp1.acceptStore(mv);</span>
+<span class="fc" id="L719">      visitLineNumber(54, propertyElement);</span>
+<span class="fc" id="L720">      visitAccessor(varPojo2, propertyElement);</span>
+<span class="fc" id="L721">      varProp2.acceptStore(mv);</span>
+
+<span class="fc" id="L723">      visitLineNumber(55, propertyElement);</span>
+<span class="fc" id="L724">      visitAccessorAndConvert(varPojo1, propertyElement);</span>
+<span class="fc" id="L725">      visitLineNumber(56, propertyElement);</span>
+<span class="fc" id="L726">      visitAccessorAndConvert(varPojo2, propertyElement);</span>
+
+<span class="fc" id="L728">      Label propertiesNotEqual = new Label();</span>
+<span class="fc" id="L729">      Label next = new Label();</span>
+<span class="fc" id="L730">      visitLineNumber(57, propertyElement);</span>
+<span class="fc" id="L731">      compareProperties(mv, propertiesNotEqual, propertyElement, stackAdjustments);</span>
+<span class="fc" id="L732">      mv.visitJumpInsn(GOTO, next); // there were no differences.</span>
+
+<span class="fc" id="L734">      mv.visitLabel(propertiesNotEqual);</span>
+
+<span class="fc bfc" id="L736" title="All 2 branches covered.">      localVarTypes[5] = localVarTypes[4] = propertyType.isPrimitive()</span>
+<span class="fc" id="L737">        ? Primitives.getOpcode(propertyType)</span>
+<span class="fc" id="L738">        : internalName(effectiveType(propertyType));</span>
+<span class="fc" id="L739">      mv.visitFrame(F_FULL, 6, localVarTypes, 0, NO_STACK);</span>
+
+      // Create a ValueDifference instance, initialized with the property name and the two values, and add it to our list
+<span class="fc" id="L742">      varDifferencesList.acceptLoad(mv); // we'll need this to add to the list</span>
+<span class="fc" id="L743">      mv.visitTypeInsn(NEW, &quot;org/pojomatic/diff/ValueDifference&quot;);</span>
+<span class="fc" id="L744">      mv.visitInsn(DUP);</span>
+<span class="fc" id="L745">      mv.visitLdcInsn(propertyElement.getName());</span>
+<span class="fc" id="L746">      varProp1.acceptLoad(mv);</span>
+<span class="fc" id="L747">      visitLineNumber(58, propertyElement);</span>
+<span class="fc" id="L748">      convertToObject(propertyType);</span>
+<span class="fc" id="L749">      varProp2.acceptLoad(mv);</span>
+<span class="fc" id="L750">      visitLineNumber(59, propertyElement);</span>
+<span class="fc" id="L751">      convertToObject(propertyType);</span>
+<span class="fc" id="L752">      visitLineNumber(60, propertyElement);</span>
+<span class="fc" id="L753">      construct(ValueDifference.class, String.class, Object.class, Object.class);</span>
+
+      // add the ValueDifference instance to our list
+<span class="fc" id="L756">      visitLineNumber(61, propertyElement);</span>
+<span class="fc" id="L757">      invokeInterface(List.class, &quot;add&quot;, boolean.class, Object.class);</span>
+<span class="fc" id="L758">      mv.visitInsn(POP); // ignore the return value of List#add</span>
+<span class="fc" id="L759">      mv.visitLabel(next);</span>
+<span class="fc" id="L760">      mv.visitFrame(F_FULL, 4, localVarTypes, 0, NO_STACK);</span>
+
+<span class="fc" id="L762">      varProp1.withScope(blockStart, next);</span>
+<span class="fc" id="L763">      varProp2.withScope(blockStart, next);</span>
+<span class="fc" id="L764">    }</span>
+
+    // if our list is empty, return the NoDifferences instance
+<span class="fc" id="L767">    varDifferencesList.acceptLoad(mv);</span>
+<span class="fc" id="L768">    visitLineNumber(62, null);</span>
+<span class="fc" id="L769">    invokeInterface(List.class, &quot;isEmpty&quot;, boolean.class);</span>
+<span class="fc" id="L770">    Label hasDifferences = new Label();</span>
+<span class="fc" id="L771">    mv.visitJumpInsn(IFEQ, hasDifferences);</span>
+<span class="fc" id="L772">    visitLineNumber(63, null);</span>
+<span class="fc" id="L773">    invokeStatic(NoDifferences.class, &quot;getInstance&quot;, NoDifferences.class);</span>
+<span class="fc" id="L774">    mv.visitInsn(ARETURN);</span>
+
+    // our list is not empty, so wrap it in a PropertyDiferences instance
+<span class="fc" id="L777">    mv.visitLabel(hasDifferences);</span>
+<span class="fc" id="L778">    mv.visitFrame(F_FULL, 4, localVarTypes, 0, NO_STACK);</span>
+
+<span class="fc" id="L780">    visitLineNumber(64, null);</span>
+<span class="fc" id="L781">    mv.visitTypeInsn(NEW, internalName(PropertyDifferences.class));</span>
+<span class="fc" id="L782">    mv.visitInsn(DUP);</span>
+<span class="fc" id="L783">    varDifferencesList.acceptLoad(mv);</span>
+<span class="fc" id="L784">    visitLineNumber(65, null);</span>
+<span class="fc" id="L785">    construct(PropertyDifferences.class, List.class);</span>
+<span class="fc" id="L786">    mv.visitInsn(ARETURN);</span>
+
+<span class="fc" id="L788">    Label end = visitNewLabel();</span>
+
+<span class="fc" id="L790">    varThis.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L791">    varPojo1.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L792">    varPojo2.withScope(start, end).acceptLocalVariable(mv);</span>
+<span class="fc" id="L793">    varDifferencesList.withScope(makeDiferences, end).acceptLocalVariable(mv);</span>
+<span class="fc bfc" id="L794" title="All 2 branches covered.">    for (LocalVariable var: propertyVariables) {</span>
+<span class="fc" id="L795">      var.acceptLocalVariable(mv);</span>
+<span class="fc" id="L796">    }</span>
+<span class="fc" id="L797">    mv.visitMaxs(6 + stackAdjustments.adjustments(2), 6 + stackAdjustments.adjustments(2));</span>
+<span class="fc" id="L798">    mv.visitEnd();</span>
+<span class="fc" id="L799">  }</span>
+
+  /**
+   * Invoke {@link BasePojomator#checkCompatibleForEquality(Object, String)} on the specified variable
+   * @param message the message to include in the {@link IllegalArgumentException} if the variable fails the
+   * class test
+   * @param varNumber the variable number to check
+   */
+  private void checkCompatibleForEquality(LocalVariable varThis, LocalVariable var, String message) {
+<span class="fc" id="L808">    varThis.acceptLoad(mv);</span>
+<span class="fc" id="L809">    var.acceptLoad(mv);</span>
+<span class="fc" id="L810">    mv.visitLdcInsn(message);</span>
+<span class="fc" id="L811">    visitLineNumber(66, null);</span>
+<span class="fc" id="L812">    invokeVirtual(BasePojomator.class, &quot;checkCompatibleForEquality&quot;, void.class, Object.class, String.class);</span>
+<span class="fc" id="L813">  }</span>
+
+  /**
+   * Determine if the given propertyElement of array type should be treated as possibly containing a multi-level array.
+   * This will be the case if it is:
+   * &lt;ul&gt;
+   *   &lt;li&gt;of type Object and is not annotated with @{@link SkipArrayCheck}&lt;/li&gt;
+   *   &lt;li&gt;of type Object[]&lt;/li&gt;
+   *   &lt;li&gt;of array type with a component type of array type&lt;/li&gt;
+   * &lt;/ul&gt;
+   * @param propertyElement
+   * @return {@code true} if the given propertyElement should be treated as possibly containing a multi-level array,
+   * or {@code false} otherwise.
+   */
+  private boolean isDeepArray(Class&lt;?&gt; propertyType) {
+<span class="fc bfc" id="L828" title="All 4 branches covered.">    return propertyType.equals(Object[].class) || propertyType.getComponentType().isArray();</span>
+  }
+
+  /**
+   * Determine if the given propertyElement should be treated as one that could be an array.
+   * @param propertyElement
+   * @return {@code true} if the given propertyElement is either of array type, or is of type Object and not annotated
+   * with @{@link SkipArrayCheck}
+   */
+  private boolean isObjectPossiblyHoldingArray(PropertyElement propertyElement) {
+<span class="fc bfc" id="L838" title="All 2 branches covered.">    return Object.class.equals(propertyElement.getPropertyType())</span>
+<span class="fc bfc" id="L839" title="All 2 branches covered.">          &amp;&amp; ! propertyElement.getElement().isAnnotationPresent(SkipArrayCheck.class);</span>
+  }
+
+  /**
+   * If the parameter on the stack (of type propertyType) is primitive, convert it to the appropriate wrapper object.
+   * Otherwise, leave it alone
+   * @param propertyType the type of the parameter on the stack
+   */
+  private void convertToObject(Class&lt;?&gt; propertyType) {
+<span class="fc bfc" id="L848" title="All 2 branches covered.">    if (propertyType.isPrimitive()) {</span>
+<span class="fc" id="L849">      Class&lt;?&gt; wrapperClass = Primitives.getWrapperClass(propertyType);</span>
+<span class="fc" id="L850">      invokeStatic(wrapperClass, &quot;valueOf&quot;, wrapperClass, propertyType);</span>
+    }
+<span class="fc" id="L852">  }</span>
+
+  /**
+   * Visit an accessor, converting floats or doubles to int bits or long bits respectively.
+   * @param propertyElement the property to access
+   * @param variableNumber the index of the local variable holding a the pojo instance to access
+   */
+  private void visitAccessorAndConvert(LocalVariable var, PropertyElement propertyElement) {
+<span class="fc" id="L860">    visitAccessor(var, propertyElement);</span>
+<span class="fc bfc" id="L861" title="All 2 branches covered.">    if (propertyElement.getPropertyType().equals(float.class)) {</span>
+<span class="fc" id="L862">      invokeStatic(Float.class, &quot;floatToIntBits&quot;, int.class, float.class);</span>
+    }
+<span class="fc bfc" id="L864" title="All 2 branches covered.">    else if (propertyElement.getPropertyType().equals(double.class)) {</span>
+<span class="fc" id="L865">      invokeStatic(Double.class, &quot;doubleToLongBits&quot;, long.class, double.class);</span>
+    }
+<span class="fc" id="L867">  }</span>
+
+  /**
+   * Visit an accessor
+   * @param var the index of the local variable holding a the pojo instance to access
+   * @param propertyElement the property to access
+   */
+  private void visitAccessor(LocalVariable var, PropertyElement propertyElement) {
+<span class="fc" id="L875">    var.acceptLoad(mv);</span>
+<span class="fc" id="L876">    mv.visitMethodInsn(</span>
+<span class="fc" id="L877">      INVOKESTATIC, pojomatorInternalClassName, propertyAccessorName(propertyElement),</span>
+<span class="fc" id="L878">      accessorMethodDescription(propertyElement));</span>
+<span class="fc" id="L879">  }</span>
+
+  private String accessorMethodDescription(PropertyElement propertyElement) {
+<span class="fc" id="L882">    return methodDesc(effectiveType(propertyElement.getPropertyType()), Object.class);</span>
+  }
+
+  /**
+   * Determine what, for our purposes, is the effective type of a property. Since a property type may be a class which
+   * is not visible to us, we'll treat any type which is neither primitive nor an array to be of type Object.
+   * A primitive type or array of primitives will be returned as is. All other array types will be returned as Object[].
+   * @param propertyClass the class to determine the effective type for.
+   * @return the effective type of {@code propertyClass}
+   */
+  private Class&lt;?&gt; effectiveType(Class&lt;?&gt; propertyClass) {
+<span class="fc bfc" id="L893" title="All 2 branches covered.">    if (propertyClass.isArray()) {</span>
+<span class="fc bfc" id="L894" title="All 2 branches covered.">      return propertyClass.getComponentType().isPrimitive() ? propertyClass : Object[].class;</span>
+    }
+    else {
+<span class="fc bfc" id="L897" title="All 2 branches covered.">      return propertyClass.isPrimitive() ? propertyClass : Object.class;</span>
+    }
+  }
+
+  /**
+   * Create a new label and visit it.
+   * @return the new label
+   */
+  private Label visitNewLabel() {
+<span class="fc" id="L906">    Label label = new Label();</span>
+<span class="fc" id="L907">    mv.visitLabel(label);</span>
+<span class="fc" id="L908">    return label;</span>
+  }
+
+  /**
+   * Visit a line number, based on a provided number, and a propertyElement (possibly null). The propertyElement will
+   * be used to distinguish line numbers generated from the same place in the code of this class, but for different
+   * properties.
+   * &lt;/p&gt;
+   * To ensure unique line numbers, run the following:
+   * &lt;code&gt;
+   *   perl -pi -e 'if (/visitLineNumber\(/) { $i++; s/visitLineNumber\(mv, \d+/visitLineNumber\(mv, $i/; }' \
+   *     src/main/java/org/pojomatic/internal/PojomatorByteCodeGenerator.java
+   * &lt;/code&gt;
+   * @param lineNumberBase
+   * @param propertyElement
+   */
+  private void visitLineNumber(int lineNumberBase, PropertyElement propertyElement) {
+<span class="fc" id="L925">    Integer offset = propertyNumbers.get(propertyElement);</span>
+<span class="fc bfc" id="L926" title="All 2 branches covered.">    mv.visitLineNumber(lineNumberBase + 100 * (offset == null ? 0 : offset), visitNewLabel());</span>
+<span class="fc" id="L927">  }</span>
+
+  /**
+   * Determine if the type of a property is &quot;wide&quot; - i.e. is a long or double.
+   * @param propertyElement
+   * @return
+   */
+  private static boolean isWide(PropertyElement propertyElement) {
+<span class="fc" id="L935">    Class&lt;?&gt; type = propertyElement.getPropertyType();</span>
+<span class="fc bfc" id="L936" title="All 4 branches covered.">    return type == long.class || type == double.class;</span>
+  }
+
+  /**
+   * Pop the top element off of the stack and invoke {@link BasePojomator#checkNotNull(Object)} on it.
+   */
+  private void checkNotNullPop() {
+<span class="fc" id="L943">    invokeStatic(BasePojomator.class, &quot;checkNotNullPop&quot;, void.class, Object.class);</span>
+<span class="fc" id="L944">  }</span>
+
+  /**
+   * Invoke {@link BasePojomator#checkNotNull(Object)} on the top element of the stack, leaving that element there.
+   */
+  private void checkNotNull() {
+<span class="fc" id="L950">    invokeStatic(BasePojomator.class, &quot;checkNotNull&quot;, Object.class, Object.class);</span>
+<span class="fc" id="L951">  }</span>
+
+  /**
+   * Invoke {@link BasePojomator#checkNotNull(Object, String)} on the top element of the stack, leaving that element there.
+   * @param message the message to include in the {@link NullPointerException} if the top element is null
+   */
+  private void checkNotNull(String message) {
+<span class="fc" id="L958">    mv.visitLdcInsn(message);</span>
+<span class="fc" id="L959">    invokeStatic(BasePojomator.class, &quot;checkNotNull&quot;, Object.class, Object.class, String.class);</span>
+<span class="fc" id="L960">  }</span>
+
+  private void invokeStatic(Class&lt;?&gt; ownerClass, String methodName, Class&lt;?&gt; returnType, Class&lt;?&gt;... parameterTypes) {
+<span class="fc" id="L963">    mv.visitMethodInsn(</span>
+<span class="fc" id="L964">      INVOKESTATIC, internalName(ownerClass), methodName, methodDesc(returnType, parameterTypes));</span>
+<span class="fc" id="L965">  }</span>
+
+  private void invokeInterface(
+    Class&lt;?&gt; ownerClass, String methodName, Class&lt;?&gt; returnType, Class&lt;?&gt;... parameterTypes) {
+<span class="fc" id="L969">    mv.visitMethodInsn(</span>
+<span class="fc" id="L970">      INVOKEINTERFACE, internalName(ownerClass), methodName, methodDesc(returnType, parameterTypes));</span>
+<span class="fc" id="L971">  }</span>
+
+  private void invokeVirtual(
+    Class&lt;?&gt; ownerClass, String methodName, Class&lt;?&gt; returnType, Class&lt;?&gt;... parameterTypes) {
+<span class="fc" id="L975">    mv.visitMethodInsn(</span>
+<span class="fc" id="L976">      INVOKEVIRTUAL, internalName(ownerClass), methodName, methodDesc(returnType, parameterTypes));</span>
+<span class="fc" id="L977">  }</span>
+
+  private void construct(
+    Class&lt;?&gt; ownerClass, Class&lt;?&gt;... parameterTypes) {
+<span class="fc" id="L981">    mv.visitMethodInsn(</span>
+<span class="fc" id="L982">      INVOKESPECIAL, internalName(ownerClass), &quot;&lt;init&gt;&quot;, methodDesc(void.class, parameterTypes));</span>
+<span class="fc" id="L983">  }</span>
+
+  private static String internalName(Class&lt;?&gt; clazz) {
+<span class="fc" id="L986">    return internalName(clazz.getName());</span>
+  }
+
+  private static String internalName(String className) {
+<span class="fc" id="L990">    return className.replace('.', '/');</span>
+  }
+
+  private static String classDesc(Class&lt;?&gt; clazz) {
+<span class="fc" id="L994">    return Type.getDescriptor(clazz);</span>
+  }
+
+  private static String methodDesc(Class&lt;?&gt; returnType, Class&lt;?&gt;... parameterTypes) {
+<span class="fc" id="L998">    return MethodType.methodType(returnType, parameterTypes).toMethodDescriptorString();</span>
+  }
+
+  private static String propertyAccessorName(PropertyElement property) {
+<span class="fc" id="L1002">    return &quot;get_&quot; + qualifiedPropertyName(property);</span>
+  }
+
+  static String propertyElementName(PropertyElement property) {
+<span class="fc" id="L1006">    return &quot;element_&quot; + qualifiedPropertyName(property);</span>
+  }
+
+  static String propertyFormatterName(PropertyElement property) {
+<span class="fc" id="L1010">    return &quot;formatter_&quot; + qualifiedPropertyName(property);</span>
+  }
+
+  private static String qualifiedPropertyName(PropertyElement property) {
+<span class="fc" id="L1014">    return property.getType()</span>
+<span class="fc" id="L1015">      + &quot;_&quot; + property.getDeclaringClass().getName().replace('.', '$')</span>
+<span class="fc" id="L1016">      + &quot;_&quot; + property.getElementName();</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

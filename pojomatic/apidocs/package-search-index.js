@@ -1,0 +1,1 @@
+packageSearchIndex = [{"m":"org.pojomatic","l":"org.pojomatic"},{"m":"org.pojomatic","l":"org.pojomatic.annotations"},{"m":"org.pojomatic","l":"org.pojomatic.diff"},{"m":"org.pojomatic","l":"org.pojomatic.formatter"},{"m":"org.pojomatic","l":"org.pojomatic.internal"}]

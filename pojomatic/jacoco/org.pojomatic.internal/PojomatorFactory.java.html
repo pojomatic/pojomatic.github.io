@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PojomatorFactory.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Pojomatic</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic.internal</a> &gt; <span class="el_source">PojomatorFactory.java</span></div><h1>PojomatorFactory.java</h1><pre class="source lang-java linenums">package org.pojomatic.internal;
+
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+
+import org.pojomatic.Pojomator;
+import org.pojomatic.PropertyElement;
+import org.pojomatic.annotations.PropertyFormat;
+import org.pojomatic.formatter.DefaultEnhancedPropertyFormatter;
+import org.pojomatic.formatter.EnhancedPropertyFormatter;
+
+<span class="nc" id="L16">public class PojomatorFactory {</span>
+  public static &lt;T&gt; Pojomator&lt;T&gt; makePojomator(final Class&lt;T&gt; pojoClass) {
+    try {
+<span class="fc" id="L19">      return AccessController.doPrivileged(new PrivilegedExceptionAction&lt;Pojomator&lt;T&gt;&gt;() {</span>
+        @Override
+        public Pojomator&lt;T&gt; run() throws Exception {
+<span class="fc" id="L22">          return makePojomatorChecked(pojoClass);</span>
+        }
+      });
+<span class="nc" id="L25">    } catch (PrivilegedActionException e) {</span>
+<span class="nc" id="L26">      throw new RuntimeException(e.getCause());</span>
+    }
+  }
+
+  private static &lt;T&gt; Pojomator&lt;T&gt; makePojomatorChecked(Class&lt;T&gt; pojoClass)
+      throws IllegalAccessException, NoSuchFieldException, SecurityException, InstantiationException,
+      InvocationTargetException, NoSuchMethodException {
+<span class="fc" id="L33">    ClassProperties classProperties = ClassProperties.forClass(pojoClass);</span>
+<span class="fc" id="L34">    PojomatorByteCodeGenerator generator = new PojomatorByteCodeGenerator(pojoClass, classProperties);</span>
+<span class="fc" id="L35">    Class&lt;?&gt; pojomatorClass = ClassDefinerFactory.getDefiner().defineClass(generator.pojomatorClassName, generator.makeClassBytes());</span>
+    @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L37">    Pojomator&lt;T&gt; pojomator = (Pojomator&lt;T&gt;) pojomatorClass.getConstructor(Class.class, ClassProperties.class)</span>
+<span class="fc" id="L38">      .newInstance(pojoClass, classProperties);</span>
+<span class="fc bfc" id="L39" title="All 2 branches covered.">    for (PropertyElement propertyElement: classProperties.getToStringProperties()) {</span>
+<span class="fc" id="L40">      setStaticField(</span>
+        pojomatorClass,
+<span class="fc" id="L42">        PojomatorByteCodeGenerator.propertyFormatterName(propertyElement),</span>
+<span class="fc" id="L43">        createPropertyFormatter(propertyElement.getElement()));</span>
+<span class="fc" id="L44">    }</span>
+<span class="fc bfc" id="L45" title="All 2 branches covered.">    for (PropertyElement propertyElement: classProperties.getAllProperties()) {</span>
+<span class="fc" id="L46">      setStaticField(pojomatorClass, PojomatorByteCodeGenerator.propertyElementName(propertyElement), propertyElement);</span>
+<span class="fc" id="L47">    }</span>
+<span class="fc" id="L48">    return pojomator;</span>
+  }
+
+  private static void setStaticField(Class&lt;?&gt; clazz, String fieldName, Object value)
+      throws NoSuchFieldException, SecurityException, IllegalAccessException {
+<span class="fc" id="L53">    Field field = clazz.getDeclaredField(fieldName);</span>
+<span class="fc" id="L54">    field.setAccessible(true);</span>
+<span class="fc" id="L55">    field.set(null, value);</span>
+<span class="fc" id="L56">  }</span>
+
+  private static EnhancedPropertyFormatter createPropertyFormatter(AnnotatedElement annotatedElement)
+    throws InstantiationException, IllegalAccessException {
+<span class="fc" id="L60">    PropertyFormat propertyFormat = annotatedElement.getAnnotation(PropertyFormat.class);</span>
+<span class="fc" id="L61">    EnhancedPropertyFormatter propertyFormatter = constructPropertyFormatter(propertyFormat);</span>
+<span class="fc" id="L62">    propertyFormatter.initialize(annotatedElement);</span>
+<span class="fc" id="L63">    return propertyFormatter;</span>
+
+  }
+
+  private static EnhancedPropertyFormatter constructPropertyFormatter(PropertyFormat propertyFormat)
+    throws InstantiationException, IllegalAccessException {
+<span class="fc bfc" id="L69" title="All 2 branches covered.">    if (propertyFormat == null) {</span>
+<span class="fc" id="L70">      return new DefaultEnhancedPropertyFormatter();</span>
+    }
+    else {
+<span class="fc bfc" id="L73" title="All 2 branches covered.">      if (EnhancedPropertyFormatter.class.isAssignableFrom(propertyFormat.value())) {</span>
+<span class="fc" id="L74">        return (EnhancedPropertyFormatter) propertyFormat.value().newInstance();</span>
+      }
+      else {
+        @SuppressWarnings(&quot;deprecation&quot;)
+<span class="fc" id="L78">        EnhancedPropertyFormatterWrapper wrapper = new EnhancedPropertyFormatterWrapper(propertyFormat.value().newInstance());</span>
+<span class="fc" id="L79">        return wrapper;</span>
+      }
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

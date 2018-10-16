@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Pojomatic.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Pojomatic</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic</a> &gt; <span class="el_source">Pojomatic.java</span></div><h1>Pojomatic.java</h1><pre class="source lang-java linenums">package org.pojomatic;
+
+import org.pojomatic.diff.Differences;
+import org.pojomatic.internal.PojomatorFactory;
+import org.pojomatic.internal.SelfPopulatingMap;
+
+/**
+ * Static methods for implementing the {@link java.lang.Object#equals(Object)},
+ * {@link java.lang.Object#hashCode()} and {@link java.lang.Object#toString()} methods on a
+ * annotated POJO.  The actual work for a given class is done by a {@link Pojomator} created for
+ * that class.  This class is careful to create only a single {@code Pojomator} per POJO class.
+ * The overhead for looking up the {@code Pojomator} by POJO class is light, so a typical use in a
+ * POJO class would be
+ * &lt;p style=&quot;margin-left: 2em&quot;&gt;
+ * &lt;code&gt;
+ * &amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#646464&quot;&gt;@Override&lt;/span&gt;&amp;nbsp;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;public&amp;nbsp;&lt;/b&gt;&lt;/span&gt;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;int&amp;nbsp;&lt;/b&gt;&lt;/span&gt;&lt;span style=&quot;color:#000000&quot;&gt;hashCode() {&lt;/span&gt;&lt;br&gt;
+ * &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;return&amp;nbsp;&lt;/b&gt;&lt;/span&gt;&lt;span style=&quot;color:#000000&quot;&gt;Pojomatic.hashCode(&lt;/span&gt;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;this&lt;/b&gt;&lt;/span&gt;&lt;span style=&quot;color:#000000&quot;&gt;);&lt;/span&gt;&lt;br&gt;
+ * &amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#000000&quot;&gt;}&lt;/span&gt;&lt;br&gt;
+ * &lt;br&gt;
+ * &amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#646464&quot;&gt;@Override&lt;/span&gt;&amp;nbsp;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;public&amp;nbsp;&lt;/b&gt;&lt;/span&gt;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;boolean&amp;nbsp;&lt;/b&gt;&lt;/span&gt;&lt;span style=&quot;color:#000000&quot;&gt;equals(Object other) {&lt;/span&gt;&lt;br&gt;
+ * &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;return&amp;nbsp;&lt;/b&gt;&lt;/span&gt;&lt;span style=&quot;color:#000000&quot;&gt;Pojomatic.equals(&lt;/span&gt;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;this&lt;/b&gt;&lt;/span&gt;&lt;span style=&quot;color:#000000&quot;&gt;, other);&lt;/span&gt;&lt;br&gt;
+ * &amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#000000&quot;&gt;}&lt;/span&gt;&lt;br&gt;
+ * &lt;br&gt;
+ * &amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#646464&quot;&gt;@Override&lt;/span&gt;&amp;nbsp;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;public&amp;nbsp;&lt;/b&gt;&lt;/span&gt;&lt;span style=&quot;color:#000000&quot;&gt;String toString() {&lt;/span&gt;&lt;br&gt;
+ * &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;return&amp;nbsp;&lt;/b&gt;&lt;/span&gt;&lt;span style=&quot;color:#000000&quot;&gt;Pojomatic.toString(&lt;/span&gt;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;this&lt;/b&gt;&lt;/span&gt;&lt;span style=&quot;color:#000000&quot;&gt;);&lt;/span&gt;&lt;br&gt;
+ * &amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#000000&quot;&gt;}&lt;/span&gt;&lt;br&gt;
+ * &lt;br&gt;
+ * &lt;/code&gt;
+ * &lt;/p&gt;
+ * Under the covers, these methods are referencing a {@link org.pojomatic.Pojomator Pojomator} instance
+ * which is created lazily and cached on a per-class basis.  The performance penalty for this is
+ * negligible, but if an interface is annotated for Pojomation, using the {@code Pojomator} directly
+ * is required, since the {@code Pojomator} for a class will only reference properties in the class
+ * and it's superclasses, but not any implemented interfaces.  To do this, first define a static
+ * constant {@code POJOMATOR} in the interface:
+ * &lt;p style=&quot;margin-left: 2em&quot;&gt;
+ * &lt;code&gt;
+ *   &lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;import&amp;nbsp;&lt;/b&gt;&lt;/span&gt;org.pojomatic.annotations.AutoProperty;&lt;br&gt;
+ *   &lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;import&amp;nbsp;&lt;/b&gt;&lt;/span&gt;org.pojomatic.Pojomator;&lt;br&gt;
+ *   &lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;import&amp;nbsp;&lt;/b&gt;&lt;/span&gt;org.pojomatic.Pojomatic;&lt;br&gt;
+ *   &lt;br&gt;
+ *   &lt;span style=&quot;color:#646464&quot;&gt;@AutoProperty&lt;/span&gt;&lt;br&gt;
+ *   &lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;public&amp;nbsp;interface&amp;nbsp;&lt;/b&gt;&lt;/span&gt;Interface&amp;nbsp;{&lt;br&gt;
+ *   &amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;static&amp;nbsp;&lt;/b&gt;&lt;/span&gt;Pojomator&amp;lt;Interface&amp;gt;&amp;nbsp;POJOMATOR&amp;nbsp;=&amp;nbsp;Pojomatic.pojomator(Interface.&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;class&lt;/b&gt;&lt;/span&gt;);&lt;br&gt;
+ *   &amp;nbsp;&amp;nbsp;...&lt;br&gt;
+ * }&lt;/code&gt;
+ * &lt;/p&gt;
+ * and then delegate to {@code POJOMATOR} in the implementing classes:
+ * &lt;p style=&quot;margin-left: 2em&quot;&gt;
+ * &lt;code&gt;
+ *   &lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;public&amp;nbsp;class&amp;nbsp;&lt;/b&gt;&lt;/span&gt;Implementation&amp;nbsp;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;implements&amp;nbsp;&lt;/b&gt;&lt;/span&gt;Interface&amp;nbsp;{&lt;br&gt;
+ *   &amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#646464&quot;&gt;@Override&lt;/span&gt;&amp;nbsp;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;public&amp;nbsp;&lt;/b&gt;&lt;/span&gt;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;int&amp;nbsp;&lt;/b&gt;&lt;/span&gt;hashCode()&amp;nbsp;{&lt;br&gt;
+ *   &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;return&amp;nbsp;&lt;/b&gt;&lt;/span&gt;POJOMATOR.doHashCode(&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;this&lt;/b&gt;&lt;/span&gt;);&lt;br&gt;
+ *   &amp;nbsp;&amp;nbsp;}&lt;br&gt;
+ *   &lt;br&gt;
+ *   &amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#646464&quot;&gt;@Override&lt;/span&gt;&amp;nbsp;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;public&amp;nbsp;&lt;/b&gt;&lt;/span&gt;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;boolean&amp;nbsp;&lt;/b&gt;&lt;/span&gt;equals(Object&amp;nbsp;other)&amp;nbsp;{&lt;br&gt;
+ *   &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;return&amp;nbsp;&lt;/b&gt;&lt;/span&gt;POJOMATOR.doEquals(this,&amp;nbsp;other);&lt;br&gt;
+ *   &amp;nbsp;&amp;nbsp;}&lt;br&gt;
+ *   &lt;br&gt;
+ *   &amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#646464&quot;&gt;@Override&lt;/span&gt;&amp;nbsp;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;public&amp;nbsp;&lt;/b&gt;&lt;/span&gt;String&amp;nbsp;toString()&amp;nbsp;{&lt;br&gt;
+ *   &amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;return&amp;nbsp;&lt;/b&gt;&lt;/span&gt;POJOMATOR.doToString(&lt;span style=&quot;color:#7f0055&quot;&gt;&lt;b&gt;this&lt;/b&gt;&lt;/span&gt;);&lt;br&gt;
+ *   &amp;nbsp;&amp;nbsp;}&lt;br&gt;
+ *   &amp;nbsp;&amp;nbsp;...&lt;br&gt;
+ *   }&lt;/code&gt;
+ * &lt;/p&gt;
+ *
+ * @see Pojomator
+ */
+public class Pojomatic {
+
+<span class="fc" id="L71">  private final static SelfPopulatingMap&lt;Class&lt;?&gt;, Pojomator&lt;?&gt;&gt; POJOMATORS =</span>
+<span class="fc" id="L72">    new SelfPopulatingMap&lt;Class&lt;?&gt;, Pojomator&lt;?&gt;&gt;() {</span>
+      @Override
+      // compiler does not know that the type parameter to Pojomator is the same as the type
+      // parameter to Class
+      protected Pojomator&lt;?&gt; create(Class&lt;?&gt; key) {
+<span class="fc" id="L77">        return PojomatorFactory.makePojomator(key);</span>
+      }
+  };
+
+  private Pojomatic() {}
+
+  /**
+   * Compute the {@code toString} representation for a POJO.
+   * @param &lt;T&gt; the type of the POJO
+   * @param pojo the POJO - must not be null
+   * @return the {@code toString} representation of {@code pojo}.
+   * @throws NoPojomaticPropertiesException if {@code pojo}'s class has no properties annotated for
+   * use with Pojomatic
+   * @see Pojomator#doToString(Object)
+   */
+  public static &lt;T&gt; String toString(T pojo) throws NoPojomaticPropertiesException {
+<span class="fc" id="L93">    return pojomator(getClass(pojo)).doToString(pojo);</span>
+  }
+
+  /**
+   * Compute the {@code hashCode} for a POJO.
+   * @param &lt;T&gt; the type of the POJO
+   * @param pojo the POJO - must not be null
+   * @return the {@code hashCode} for {@code pojo}.
+   * @throws NoPojomaticPropertiesException if {@code pojo}'s class has no properties annotated for
+   * use with Pojomatic
+   * @see Pojomator#doHashCode(Object)
+   */
+  public static &lt;T&gt; int hashCode(T pojo) throws NoPojomaticPropertiesException {
+<span class="fc" id="L106">    return pojomator(getClass(pojo)).doHashCode(pojo);</span>
+  }
+
+  /**
+   * Compute whether {@code pojo} and {@code other} are equal to each other in the sense of
+   * {@code Object}'s {@code equals} method.
+   * @param &lt;T&gt; the type of the POJO
+   * @param pojo the POJO - must not be null
+   * @param other the object to compare to for equality
+   * @return whether {@code pojo} and {@code other} are equal to each other in the sense of
+   * {@code Object}'s {@code equals} method.
+   * @throws NoPojomaticPropertiesException if {@code pojo}'s class has no properties annotated for
+   * use with Pojomatic
+   * @see Pojomator#doEquals(Object, Object)
+   */
+  public static &lt;T&gt; boolean equals(T pojo, Object other) throws NoPojomaticPropertiesException {
+<span class="fc" id="L122">    return pojomator(getClass(pojo)).doEquals(pojo, other);</span>
+  }
+
+  /**
+   * Compute whether {@code classA} and {@code classB} are compatible for equality as specified
+   * by the documentation for {@link Pojomator#isCompatibleForEquality(Class)}.
+   * @param classA the first class to check for compatibility for equality
+   * @param classB the second class to check for compatibility for equality
+   * @return {@code true} if the two classes are compatible for equality, or {@code false}
+   * otherwise.
+   */
+  public static boolean areCompatibleForEquals(Class&lt;?&gt; classA, Class&lt;?&gt; classB) {
+<span class="fc" id="L134">    return pojomator(classA).isCompatibleForEquality(classB);</span>
+  }
+
+  /**
+   * Compute the differences between {@code pojo} and {@code other} among the properties
+   * examined by {@link #equals(Object, Object)} for type {@code T}.
+   *
+   * @param &lt;T&gt; the static type of the first object to compare
+   * @param &lt;S&gt; the static type of the first object to compare
+   * @param pojo the instance to diff against
+   * @param other the instance to diff
+   * @return the list of differences (possibly empty) between {@code instance} and {@code other}
+   * among the properties examined by {@link #equals(Object, Object)} for type {@code T}.
+   * @throws NullPointerException if {@code pojo} or {@code other} are null
+   * (this behavior may change in future releases).
+   * @throws NoPojomaticPropertiesException if {@code pojo}'s class has no properties
+   * annotated for use with Pojomatic, or if the types of {@code pojo} and {@code other} are not
+   * compatible for equality with each other (this behavior may change in future releases).
+   */
+  public static &lt;T, S extends T&gt; Differences diff(T pojo, S other)
+  throws NullPointerException, NoPojomaticPropertiesException {
+<span class="fc bfc" id="L155" title="All 2 branches covered.">    if (pojo == null) {</span>
+<span class="fc" id="L156">      throw new NullPointerException(&quot;pojo is null&quot;);</span>
+    }
+<span class="fc bfc" id="L158" title="All 2 branches covered.">    if (other == null) {</span>
+<span class="fc" id="L159">      throw new NullPointerException(&quot;other is null&quot;);</span>
+    }
+<span class="fc" id="L161">    return pojomator(getClass(pojo)).doDiff(pojo, other);</span>
+  }
+
+  /**
+   * Get the {@code Pojomator} for {@code pojoClass}. While the same instance will be returned every time
+   * for a given value of {@code pojoClass}, highly performance-sensitive applications may want to cache the value
+   * returned in a static variable on the class in question. Note that a static Pojomator for a parent class
+   * will miss any additional properties when used on a child class.
+   * @param &lt;T&gt; the type represented by {@code pojoClass}
+   * @param pojoClass the class to create a {@code Pojomator} for.
+   * @return a {@code Pojomator&lt;T&gt;}
+   * @throws NoPojomaticPropertiesException if {@code pojoClass} has no properties annotated for use
+   * with Pojomatic
+   */
+  @SuppressWarnings(&quot;unchecked&quot;) // compiler does not know that the type parameter to Pojomator is T
+  public static &lt;T&gt; Pojomator&lt;T&gt; pojomator(Class&lt;T&gt; pojoClass)
+  throws NoPojomaticPropertiesException {
+<span class="fc" id="L178">    return (Pojomator&lt;T&gt;) POJOMATORS.get(pojoClass);</span>
+  }
+
+  @SuppressWarnings(&quot;unchecked&quot;) // Since Object.getClass returns Class&lt;?&gt;
+  private static &lt;T&gt; Class&lt;T&gt; getClass(T pojo) {
+<span class="fc" id="L183">    return (Class&lt;T&gt;) pojo.getClass();</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PojomaticPolicy.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Pojomatic</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic.annotations</a> &gt; <span class="el_source">PojomaticPolicy.java</span></div><h1>PojomaticPolicy.java</h1><pre class="source lang-java linenums">package org.pojomatic.annotations;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Set;
+
+import org.pojomatic.Pojomatic;
+import org.pojomatic.internal.PropertyRole;
+
+/**
+ * A policy for defining which sets of {@link Pojomatic} operations
+ * ({@code equals}, {@code hashCode} and {@code toString}) should use a property.
+ * This is set using {@link Property}.
+ * @see DefaultPojomaticPolicy
+ */
+<span class="fc" id="L17">public enum PojomaticPolicy {</span>
+
+  /**
+   * Use the property for both {@code hashCode} and {@code equals}.
+   * Anything included in {@code public int hashCode()} should also be included in
+   * {@code public boolean equals(Object)} to preserve the general
+   * contract of {@link Object#hashCode()}.
+   *
+   * @see Object#hashCode()
+   * @see Object#equals(Object)
+   */
+<span class="fc" id="L28">  HASHCODE_EQUALS(PropertyRole.HASH_CODE, PropertyRole.EQUALS),</span>
+
+  /**
+   * Use the property for both {@code equals} and {@code toString}.
+   *
+   * @see Object#equals(Object)
+   * @see Object#toString()
+   */
+<span class="fc" id="L36">  EQUALS_TO_STRING(PropertyRole.EQUALS, PropertyRole.TO_STRING),</span>
+
+
+  /**
+   * Use the property for {@code equals} only.
+   *
+   * @see Object#equals(Object)
+   */
+<span class="fc" id="L44">  EQUALS(PropertyRole.EQUALS),</span>
+
+  /**
+   * Use the property for both {@code toString} only.
+   *
+   * @see Object#toString()
+   */
+<span class="fc" id="L51">  TO_STRING(PropertyRole.TO_STRING),</span>
+
+  /**
+   * Use the property for {@code hashCode}, {@code equals} and {@code toString}.
+   */
+<span class="fc" id="L56">  ALL(PropertyRole.EQUALS, PropertyRole.HASH_CODE, PropertyRole.TO_STRING),</span>
+
+  /**
+   * Do not use the property for any of {@code hashCode}, {@code equals} or {@code toString}.
+   */
+<span class="fc" id="L61">  NONE(),</span>
+
+  /**
+   * Use the default policy specified via the {@code @AutoProperty} annotation, or
+   * {@code ALL} if none was specified.
+   */
+<span class="fc" id="L67">  DEFAULT {</span>
+    @Override public Set&lt;PropertyRole&gt; getRoles() {
+<span class="fc" id="L69">      return null;</span>
+    }
+  };
+
+
+  /**
+   * @return the roles this specified by this policy.  Will be {@code null} for {@code DEFAULT}.
+   */
+  public Set&lt;PropertyRole&gt; getRoles() {
+<span class="fc" id="L78">    return roles;</span>
+  }
+
+<span class="fc" id="L81">  private PojomaticPolicy(PropertyRole... roles) {</span>
+<span class="fc" id="L82">    Set&lt;PropertyRole&gt; roleSet = EnumSet.noneOf(PropertyRole.class);</span>
+<span class="fc" id="L83">    roleSet.addAll(Arrays.asList(roles));</span>
+<span class="fc" id="L84">    this.roles = Collections.unmodifiableSet(roleSet);</span>
+<span class="fc" id="L85">  }</span>
+
+  private final Set&lt;PropertyRole&gt; roles;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

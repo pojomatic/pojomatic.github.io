@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AssertUtils.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">PojomaticTestUtils</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic.test</a> &gt; <span class="el_source">AssertUtils.java</span></div><h1>AssertUtils.java</h1><pre class="source lang-java linenums">package org.pojomatic.test;
+
+import org.pojomatic.Pojomatic;
+import org.pojomatic.NoPojomaticPropertiesException;
+
+/**
+ * This class is not meant to be a part of the public API.
+ */
+public class AssertUtils {
+
+  /**
+   * Determines if two objects are both null or are equal according to
+   * {@link Object#equals(Object)}.
+   *
+   * @param first the first object to compare
+   * @param second the second object to compare
+   * @return {@code true} if both objects are null,
+   * or {@code first} is non-null and {@code first.equals(second)},
+   * {@code false} otherwise
+   * @see Object#equals(Object)
+   */
+  public static boolean equal(Object first, Object second) {
+<span class="fc bfc" id="L23" title="All 4 branches covered.">    return first == null ? second == null : first.equals(second);</span>
+  }
+
+  /**
+   * Asserts that two objects are either both null or are equal according to
+   * {@link Object#equals(Object)}. If not, an {@code AssertionError} is thrown. If the objects are
+   * not equal, but the types of two objects are compatible for equality, then the differences as
+   * determined by {@link Pojomatic#diff(Object, Object)} are included in the failure message.
+   *
+   * @param message the message to add if the assertion fails
+   * @param expected will be displayed first if the assertion fails
+   * @param actual will be displayed second if the assertion fails
+   * @throws AssertionError if the objects are not equal. {@link AssertionError#getMessage()} will
+   * include information about the differences
+   */
+  public static void assertEquals(String message, Object expected, Object actual) {
+<span class="fc bfc" id="L39" title="All 2 branches covered.">    if (!equal(expected, actual)) {</span>
+<span class="fc bfc" id="L40" title="All 2 branches covered.">      if (expected == null) {</span>
+<span class="fc" id="L41">        throw new AssertionError(</span>
+<span class="fc" id="L42">          makeBuilder(message).append(&quot;expected is null, but actual is &quot;).append(actual));</span>
+      }
+<span class="fc bfc" id="L44" title="All 2 branches covered.">      if (actual == null) {</span>
+<span class="fc" id="L45">        throw new AssertionError(</span>
+<span class="fc" id="L46">          makeBuilder(message).append(&quot;actual is null, but expected is &quot;).append(expected));</span>
+      }
+      try {
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        if (Pojomatic.areCompatibleForEquals(expected.getClass(), actual.getClass())) {</span>
+<span class="fc" id="L50">          throw new AssertionError(appendStandardEqualityMessage(</span>
+<span class="fc" id="L51">            makeBuilder(message).append(&quot;differences between expected and actual:&quot;)</span>
+<span class="fc" id="L52">            .append(Pojomatic.diff(expected, actual))</span>
+<span class="fc" id="L53">              .append(&quot; (&quot;), expected, actual).append(&quot;)&quot;).toString());</span>
+        }
+      }
+<span class="fc" id="L56">      catch (NoPojomaticPropertiesException e) {}</span>
+<span class="fc" id="L57">      throw new AssertionError(</span>
+<span class="fc" id="L58">        appendStandardEqualityMessage(makeBuilder(message), expected, actual).toString());</span>
+      }
+<span class="fc" id="L60">  }</span>
+
+  private static StringBuilder appendStandardEqualityMessage(
+    StringBuilder builder, Object expected, Object actual) {
+<span class="fc" id="L64">    return builder</span>
+<span class="fc" id="L65">      .append(&quot;expected:&lt;&quot;).append(expected).append(&quot;&gt; but was:&lt;&quot;).append(actual).append(&quot;&gt;&quot;);</span>
+  }
+
+  private static StringBuilder makeBuilder(String message) {
+<span class="fc bfc" id="L69" title="All 2 branches covered.">    return message == null ? new StringBuilder() : new StringBuilder(message).append(&quot; &quot;);</span>
+  }
+
+  private AssertUtils() {}
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

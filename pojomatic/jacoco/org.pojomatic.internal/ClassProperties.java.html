@@ -1,0 +1,349 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ClassProperties.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Pojomatic</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic.internal</a> &gt; <span class="el_source">ClassProperties.java</span></div><h1>ClassProperties.java</h1><pre class="source lang-java linenums">package org.pojomatic.internal;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Member;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+import org.pojomatic.Pojomator;
+import org.pojomatic.PropertyElement;
+import org.pojomatic.NoPojomaticPropertiesException;
+import org.pojomatic.annotations.*;
+
+/**
+ * The properties of a class used for {@link Pojomator#doHashCode(Object)},
+ * {@link Pojomator#doEquals(Object, Object)}, and {@link Pojomator#doToString(Object)}.
+ */
+public class ClassProperties {
+<span class="fc" id="L27">  private static final Pattern ACCESSOR_PATTERN = Pattern.compile(&quot;(get|is)\\P{Ll}.*&quot;);</span>
+
+<span class="fc" id="L29">  private final Map&lt;PropertyRole, List&lt;PropertyElement&gt;&gt; properties = makeProperties();</span>
+
+  private final Class&lt;?&gt; equalsParentClass;
+
+  private final boolean subclassCannotOverrideEquals;
+
+<span class="fc" id="L35">  private final static SelfPopulatingMap&lt;Class&lt;?&gt;, ClassProperties&gt; INSTANCES =</span>
+<span class="fc" id="L36">    new SelfPopulatingMap&lt;Class&lt;?&gt;, ClassProperties&gt;() {</span>
+      @Override
+      protected ClassProperties create(Class&lt;?&gt; key) {
+<span class="fc" id="L39">        return new ClassProperties(key);</span>
+      }
+    };
+
+<span class="fc" id="L43">  private final static class ClassContributionTracker {</span>
+<span class="fc" id="L44">    private Class&lt;?&gt; clazz = Object.class;</span>
+
+    public void noteContribution(Class&lt;?&gt; contributingClass) {
+<span class="fc" id="L47">      clazz = contributingClass;</span>
+<span class="fc" id="L48">    }</span>
+
+    public Class&lt;?&gt; getMostSpecificContributingClass() {
+<span class="fc" id="L51">      return clazz;</span>
+    }
+  }
+
+  /**
+   * Get an instance for the given {@code pojoClass}.  Instances are cached, so calling this method
+   * repeatedly is not inefficient.
+   * @param pojoClass the class to inspect for properties
+   * @return The {@code ClassProperties} for {@code pojoClass}.
+   * @throws NoPojomaticPropertiesException if {@code pojoClass} has no properties annotated for use
+   * with Pojomatic.
+   */
+  public static ClassProperties forClass(Class&lt;?&gt; pojoClass) throws NoPojomaticPropertiesException {
+<span class="fc" id="L64">    return INSTANCES.get(pojoClass);</span>
+  }
+
+  /**
+   * Creates an instance for the given {@code pojoClass}.
+   *
+   * @param pojoClass the class to inspect for properties
+   * @throws NoPojomaticPropertiesException if {@code pojoClass} has no properties annotated for use
+   * with Pojomatic.
+   */
+<span class="fc" id="L74">  private ClassProperties(Class&lt;?&gt; pojoClass) throws NoPojomaticPropertiesException {</span>
+<span class="fc bfc" id="L75" title="All 2 branches covered.">    if (pojoClass.isInterface()) {</span>
+<span class="fc" id="L76">      extractClassProperties(pojoClass, new OverridableMethods(), new ClassContributionTracker());</span>
+<span class="fc" id="L77">      equalsParentClass = pojoClass;</span>
+    }
+    else {
+<span class="fc" id="L80">      ClassContributionTracker classContributionTracker = new ClassContributionTracker();</span>
+<span class="fc" id="L81">      walkHierarchy(pojoClass, new OverridableMethods(), classContributionTracker);</span>
+<span class="fc" id="L82">      equalsParentClass = classContributionTracker.getMostSpecificContributingClass();</span>
+    }
+<span class="fc" id="L84">    verifyPropertiesNotEmpty(pojoClass);</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">    subclassCannotOverrideEquals = pojoClass.isAnnotationPresent(SubclassCannotOverrideEquals.class)</span>
+<span class="fc bfc" id="L86" title="All 2 branches covered.">      || pojoClass.isInterface();</span>
+<span class="fc" id="L87">  }</span>
+
+  /**
+   * Gets the properties to use for {@link Pojomator#doEquals(Object, Object)}.
+   * @return the properties to use for {@link Pojomator#doEquals(Object, Object)}.
+   */
+  public Collection&lt;PropertyElement&gt; getEqualsProperties() {
+<span class="fc" id="L94">    return properties.get(PropertyRole.EQUALS);</span>
+  }
+
+  /**
+   * Gets the properties to use for {@link Pojomator#doHashCode(Object)}.
+   * @return the properties to use for {@link Pojomator#doHashCode(Object)}.
+   */
+  public Collection&lt;PropertyElement&gt; getHashCodeProperties() {
+<span class="fc" id="L102">    return properties.get(PropertyRole.HASH_CODE);</span>
+  }
+
+  /**
+   * Gets the properties to use for {@link Pojomator#doToString(Object)}.
+   * @return the properties to use for {@link Pojomator#doToString(Object)}.
+   */
+  public Collection&lt;PropertyElement&gt; getToStringProperties() {
+<span class="fc" id="L110">    return properties.get(PropertyRole.TO_STRING);</span>
+  }
+
+  /**
+   * Get the union of all properties used for any Pojomator methods. The resulting set will have a predictable iteration
+   * order: first, the ordered list of elements used for equals, followed by an ordered list of any additional elements
+   * used for toString.
+   * @return the union of all properties used for any Pojomator methods.
+   */
+  public Set&lt;PropertyElement&gt; getAllProperties() {
+<span class="fc" id="L120">    LinkedHashSet&lt;PropertyElement&gt; allProperties = new LinkedHashSet&lt;&gt;();</span>
+<span class="fc" id="L121">    allProperties.addAll(properties.get(PropertyRole.EQUALS));</span>
+<span class="fc" id="L122">    allProperties.addAll(properties.get(PropertyRole.TO_STRING));</span>
+<span class="fc" id="L123">    return allProperties;</span>
+  }
+
+  /**
+   * Whether instances of {@code otherClass} are candidates for being equal to instances of
+   * the class this {@code ClassProperties} instance was created for.
+   * @param otherClass the class to check for compatibility for equals with.
+   * @return {@code true} if instances of {@code otherClass} are candidates for being equal to
+   * instances of the class this {@code ClassProperties} instance was created for, or {@code false}
+   * otherwise.
+   */
+  public boolean isCompatibleForEquals(Class&lt;?&gt; otherClass) {
+<span class="fc bfc" id="L135" title="All 2 branches covered.">    if (!equalsParentClass.isAssignableFrom(otherClass)) {</span>
+<span class="fc" id="L136">      return false;</span>
+    }
+    else {
+<span class="fc bfc" id="L139" title="All 2 branches covered.">      if (subclassCannotOverrideEquals) {</span>
+<span class="fc" id="L140">        return true;</span>
+      }
+      else {
+<span class="fc" id="L143">        return equalsParentClass.equals(forClass(otherClass).equalsParentClass);</span>
+      }
+    }
+  }
+
+  /**
+   * Walk up to the top of the hierarchy of {@code clazz}, then start extracting properties from it, working back down
+   * the inheritance chain from parent to child.
+   * @param clazz the class to inspect
+   * @param overridableMethods used to track which methods can be overridden
+   * @param classContributionTracker used to track the most specific class which contributes properties
+   */
+  private void walkHierarchy(
+    Class&lt;?&gt; clazz,
+    OverridableMethods overridableMethods,
+    ClassContributionTracker classContributionTracker) {
+<span class="fc bfc" id="L159" title="All 2 branches covered.">    if (clazz != Object.class) {</span>
+<span class="fc" id="L160">      walkHierarchy(clazz.getSuperclass(), overridableMethods, classContributionTracker);</span>
+<span class="fc" id="L161">      extractClassProperties(clazz, overridableMethods, classContributionTracker);</span>
+<span class="fc bfc" id="L162" title="All 2 branches covered.">      if (clazz.isAnnotationPresent(OverridesEquals.class)) {</span>
+<span class="fc" id="L163">        classContributionTracker.noteContribution(clazz);</span>
+      }
+    }
+<span class="fc" id="L166">  }</span>
+
+  private void extractClassProperties(
+    Class&lt;?&gt; clazz,
+    OverridableMethods overridableMethods,
+    ClassContributionTracker classContributionTracker) {
+<span class="fc" id="L172">    AutoProperty autoProperty = clazz.getAnnotation(AutoProperty.class);</span>
+    final DefaultPojomaticPolicy classPolicy =
+<span class="fc bfc" id="L174" title="All 2 branches covered.">      (autoProperty != null) ? autoProperty.policy() : null;</span>
+    final AutoDetectPolicy autoDetectPolicy =
+<span class="fc bfc" id="L176" title="All 2 branches covered.">      (autoProperty != null) ? autoProperty.autoDetect() : null;</span>
+
+<span class="fc" id="L178">    Map&lt;PropertyRole, Map&lt;String, PropertyElement&gt;&gt; fieldsMap = extractFields(</span>
+      clazz, classPolicy, autoDetectPolicy, classContributionTracker);
+<span class="fc" id="L180">    Map&lt;PropertyRole, Map&lt;String, PropertyElement&gt;&gt; methodsMap = extractMethods(</span>
+      clazz, classPolicy, autoDetectPolicy, overridableMethods, classContributionTracker);
+<span class="fc bfc" id="L182" title="All 4 branches covered.">    if (containsValues(fieldsMap) || containsValues(methodsMap)) {</span>
+<span class="fc" id="L183">      PropertyClassVisitor propertyClassVisitor = PropertyClassVisitor.visitClass(clazz, fieldsMap, methodsMap);</span>
+<span class="fc bfc" id="L184" title="All 2 branches covered.">      if (propertyClassVisitor != null) {</span>
+<span class="fc bfc" id="L185" title="All 2 branches covered.">        for (PropertyRole role: PropertyRole.values()) {</span>
+<span class="fc" id="L186">          properties.get(role).addAll(propertyClassVisitor.getSortedProperties().get(role));</span>
+        }
+      }
+      else {
+<span class="fc" id="L190">        throw new RuntimeException(&quot;no class bytes for &quot; + clazz);</span>
+      }
+    }
+<span class="fc" id="L193">  }</span>
+
+  private static boolean containsValues(Map&lt;?, ? extends Map&lt;?, ?&gt;&gt; mapOfMaps) {
+<span class="fc bfc" id="L196" title="All 2 branches covered.">    for (Map&lt;?, ?&gt; map: mapOfMaps.values()) {</span>
+<span class="fc bfc" id="L197" title="All 2 branches covered.">      if (! map.isEmpty()) {</span>
+<span class="fc" id="L198">        return true;</span>
+      }
+<span class="fc" id="L200">    }</span>
+<span class="fc" id="L201">    return false;</span>
+  }
+
+  private Map&lt;PropertyRole, Map&lt;String, PropertyElement&gt;&gt; extractMethods(
+    Class&lt;?&gt; clazz,
+    final DefaultPojomaticPolicy classPolicy,
+    final AutoDetectPolicy autoDetectPolicy,
+    final OverridableMethods overridableMethods,
+    final ClassContributionTracker classContributionTracker) {
+<span class="fc" id="L210">    Map&lt;PropertyRole, Map&lt;String, PropertyElement&gt;&gt; propertiesMap = makePropertiesMap();</span>
+<span class="fc bfc" id="L211" title="All 2 branches covered.">    for (Method method : clazz.getDeclaredMethods()) {</span>
+<span class="fc bfc" id="L212" title="All 2 branches covered.">      if (method.isSynthetic()) {</span>
+<span class="fc" id="L213">        continue;</span>
+      }
+<span class="fc" id="L215">      Property property = method.getAnnotation(Property.class);</span>
+<span class="fc bfc" id="L216" title="All 2 branches covered.">      if (isStatic(method)) {</span>
+<span class="fc bfc" id="L217" title="All 2 branches covered.">        if (property != null) {</span>
+<span class="fc" id="L218">          throw new IllegalArgumentException(</span>
+<span class="fc" id="L219">            &quot;Static method &quot; + clazz.getName() + &quot;.&quot; + method.getName()</span>
+            + &quot;() is annotated with @Property&quot;);
+        }
+        else {
+          continue;
+        }
+      }
+
+<span class="fc" id="L227">      PojomaticPolicy propertyPolicy = null;</span>
+<span class="fc bfc" id="L228" title="All 2 branches covered.">      if (property != null) {</span>
+<span class="fc bfc" id="L229" title="All 2 branches covered.">        if (!methodSignatureIsAccessor(method)) {</span>
+<span class="fc" id="L230">          throw new IllegalArgumentException(</span>
+            &quot;Method &quot; + method +
+            &quot; is annotated with @Property but either takes arguments or returns void&quot;);
+        }
+<span class="fc" id="L234">        propertyPolicy = property.policy();</span>
+      }
+<span class="fc bfc" id="L236" title="All 2 branches covered.">      else if (!methodIsAccessor(method)) {</span>
+<span class="fc" id="L237">        continue;</span>
+      }
+
+      /* add all methods that are explicitly annotated or auto-detected, and not overriding already
+       * added methods */
+<span class="fc bfc" id="L242" title="All 4 branches covered.">      if (propertyPolicy != null || AutoDetectPolicy.METHOD == autoDetectPolicy) {</span>
+<span class="fc" id="L243">        PropertyAccessor propertyAccessor = null;</span>
+<span class="fc bfc" id="L244" title="All 2 branches covered.">        for (PropertyRole role : overridableMethods.checkAndMaybeAddRolesToMethod(</span>
+<span class="fc" id="L245">          method, PropertyFilter.getRoles(propertyPolicy, classPolicy))) {</span>
+<span class="fc bfc" id="L246" title="All 2 branches covered.">          if (propertyAccessor == null) {</span>
+<span class="fc" id="L247">            propertyAccessor = new PropertyAccessor(method, getPropertyName(property));</span>
+          }
+<span class="fc" id="L249">          propertiesMap.get(role).put(method.getName(), propertyAccessor);</span>
+<span class="fc bfc" id="L250" title="All 2 branches covered.">          if (PropertyRole.EQUALS == role) {</span>
+<span class="fc" id="L251">            classContributionTracker.noteContribution(clazz);</span>
+          }
+<span class="fc" id="L253">        }</span>
+      }
+    }
+<span class="fc" id="L256">    return propertiesMap;</span>
+  }
+
+  private Map&lt;PropertyRole, Map&lt;String, PropertyElement&gt;&gt; extractFields(
+    Class&lt;?&gt; clazz,
+    final DefaultPojomaticPolicy classPolicy,
+    final AutoDetectPolicy autoDetectPolicy,
+    final ClassContributionTracker classContributionTracker) {
+<span class="fc" id="L264">    Map&lt;PropertyRole, Map&lt;String, PropertyElement&gt;&gt; propertiesMap = makePropertiesMap();</span>
+<span class="fc bfc" id="L265" title="All 2 branches covered.">    for (Field field : clazz.getDeclaredFields()) {</span>
+<span class="fc bfc" id="L266" title="All 2 branches covered.">      if (field.isSynthetic()) {</span>
+<span class="fc" id="L267">        continue;</span>
+      }
+<span class="fc" id="L269">      Property property = field.getAnnotation(Property.class);</span>
+<span class="fc bfc" id="L270" title="All 2 branches covered.">      if (isStatic(field)) {</span>
+<span class="fc bfc" id="L271" title="All 2 branches covered.">        if (property != null) {</span>
+<span class="fc" id="L272">          throw new IllegalArgumentException(</span>
+<span class="fc" id="L273">            &quot;Static field &quot; + clazz.getName() + &quot;.&quot; + field.getName()</span>
+            + &quot; is annotated with @Property&quot;);
+        }
+        else {
+          continue;
+        }
+      }
+
+<span class="fc bfc" id="L281" title="All 2 branches covered.">      final PojomaticPolicy propertyPolicy = (property != null) ? property.policy() : null;</span>
+
+      /* add all fields that are explicitly annotated or auto-detected */
+<span class="fc bfc" id="L284" title="All 4 branches covered.">      if (propertyPolicy != null || AutoDetectPolicy.FIELD == autoDetectPolicy) {</span>
+<span class="fc" id="L285">        PropertyField propertyField = null;</span>
+<span class="fc bfc" id="L286" title="All 2 branches covered.">        for (PropertyRole role : PropertyFilter.getRoles(propertyPolicy, classPolicy)) {</span>
+<span class="fc bfc" id="L287" title="All 2 branches covered.">          if (propertyField == null) {</span>
+<span class="fc" id="L288">            propertyField = new PropertyField(field, getPropertyName(property));</span>
+          }
+<span class="fc" id="L290">          propertiesMap.get(role).put(field.getName(), propertyField);</span>
+<span class="fc bfc" id="L291" title="All 2 branches covered.">          if (PropertyRole.EQUALS == role) {</span>
+<span class="fc" id="L292">            classContributionTracker.noteContribution(clazz);</span>
+          }
+<span class="fc" id="L294">        }</span>
+      }
+    }
+<span class="fc" id="L297">    return propertiesMap;</span>
+  }
+
+  private void verifyPropertiesNotEmpty(Class&lt;?&gt; pojoClass) {
+<span class="fc bfc" id="L301" title="All 2 branches covered.">    for (Collection&lt;PropertyElement&gt; propertyElements : properties.values()) {</span>
+<span class="fc bfc" id="L302" title="All 2 branches covered.">      if (!propertyElements.isEmpty()) {</span>
+<span class="fc" id="L303">        return;</span>
+      }
+<span class="fc" id="L305">    }</span>
+<span class="fc" id="L306">    throw new NoPojomaticPropertiesException(pojoClass);</span>
+  }
+
+  private String getPropertyName(Property property) {
+<span class="fc bfc" id="L310" title="All 2 branches covered.">    return property == null ? &quot;&quot; : property.name();</span>
+  }
+
+  private static boolean methodIsAccessor(Method method) {
+<span class="fc bfc" id="L314" title="All 2 branches covered.">    return methodSignatureIsAccessor(method)</span>
+<span class="fc bfc" id="L315" title="All 2 branches covered.">      &amp;&amp; isAccessorName(method.getName());</span>
+  }
+
+  private static boolean methodSignatureIsAccessor(Method method) {
+<span class="fc bfc" id="L319" title="All 2 branches covered.">    return ! Void.TYPE.equals(method.getReturnType())</span>
+<span class="fc bfc" id="L320" title="All 2 branches covered.">      &amp;&amp; method.getParameterTypes().length == 0;</span>
+  }
+
+  private static boolean isAccessorName(String name) {
+<span class="fc" id="L324">    return ACCESSOR_PATTERN.matcher(name).matches();</span>
+  }
+
+  private static boolean isStatic(Member member) {
+<span class="fc" id="L328">    return Modifier.isStatic(member.getModifiers());</span>
+  }
+
+  private static Map&lt;PropertyRole, List&lt;PropertyElement&gt;&gt; makeProperties() {
+<span class="fc" id="L332">    Map&lt;PropertyRole, List&lt;PropertyElement&gt;&gt; properties =</span>
+      new EnumMap&lt;&gt;(PropertyRole.class);
+<span class="fc bfc" id="L334" title="All 2 branches covered.">    for (PropertyRole role : PropertyRole.values()) {</span>
+<span class="fc" id="L335">      properties.put(role, new ArrayList&lt;PropertyElement&gt;());</span>
+    }
+<span class="fc" id="L337">    return properties;</span>
+  }
+
+  private static Map&lt;PropertyRole, Map&lt;String, PropertyElement&gt;&gt; makePropertiesMap() {
+<span class="fc" id="L341">    Map&lt;PropertyRole, Map&lt;String, PropertyElement&gt;&gt; properties =</span>
+        new EnumMap&lt;&gt;(PropertyRole.class);
+<span class="fc bfc" id="L343" title="All 2 branches covered.">    for (PropertyRole role : PropertyRole.values()) {</span>
+<span class="fc" id="L344">      properties.put(role, new LinkedHashMap&lt;String, PropertyElement&gt;());</span>
+    }
+<span class="fc" id="L346">    return properties;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SelfPopulatingMap.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Pojomatic</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic.internal</a> &gt; <span class="el_source">SelfPopulatingMap.java</span></div><h1>SelfPopulatingMap.java</h1><pre class="source lang-java linenums">package org.pojomatic.internal;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
+/**
+ * A thread-safe &quot;map&quot; which generates values on demand, with the guarantee that no more than one
+ * value will be auto-created for a given key.
+ * Classes extending this class should override {@link #create(Object)}.
+ * @param &lt;K&gt; the key type
+ * @param &lt;V&gt; the value type
+ */
+<span class="fc" id="L13">public abstract class SelfPopulatingMap&lt;K, V&gt; {</span>
+
+  public V get(final K key) {
+<span class="fc" id="L16">    V value = valueMap.get(key);</span>
+<span class="fc bfc" id="L17" title="All 2 branches covered.">    if (value == null) {</span>
+<span class="fc" id="L18">      final Object mutex = new Object();</span>
+<span class="fc" id="L19">      synchronized (mutex) {</span>
+<span class="fc" id="L20">        Object existingMutex = mutexMap.putIfAbsent(key, mutex);</span>
+<span class="fc bfc" id="L21" title="All 2 branches covered.">        if (existingMutex == null) {</span>
+<span class="fc" id="L22">          return tryCreatingValue(key);</span>
+        }
+        else {
+<span class="fc" id="L25">          synchronized (existingMutex) {</span>
+<span class="fc" id="L26">            V oldValue = valueMap.get(key);</span>
+            // if the previous holder of this mutex failed to create a value, we'll give it a shot.
+<span class="fc bfc" id="L28" title="All 2 branches covered.">            return oldValue != null ? oldValue : tryCreatingValue(key);</span>
+          }
+        }
+      }
+    }
+<span class="fc" id="L33">    return value;</span>
+  }
+
+  /**
+   * Create a value for a key.  This will be called by {@link #get(Object)} when there is not
+   * already an existing value, and no other thread is already creating a value for that key.
+   * The value returned must not be null.
+   * @param key the key to create the value for
+   * @return the value
+   */
+  protected abstract V create(K key);
+
+  private V tryCreatingValue(K key) {
+<span class="fc" id="L46">    V value = create(key);</span>
+<span class="fc" id="L47">    valueMap.put(key, value);</span>
+<span class="fc" id="L48">    return value;</span>
+  }
+
+  /**
+   * The values held by this map.
+   */
+<span class="fc" id="L54">  private final ConcurrentMap&lt;K, V&gt; valueMap = new ConcurrentHashMap&lt;&gt;();</span>
+
+  /**
+   * Mutexes created on demand to ensure that only a single value is created for each key.
+   */
+<span class="fc" id="L59">  private final ConcurrentMap&lt;K, Object&gt; mutexMap = new ConcurrentHashMap&lt;&gt;();</span>
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

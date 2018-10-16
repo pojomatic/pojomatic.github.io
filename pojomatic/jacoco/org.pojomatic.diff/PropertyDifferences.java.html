@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PropertyDifferences.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Pojomatic</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic.diff</a> &gt; <span class="el_source">PropertyDifferences.java</span></div><h1>PropertyDifferences.java</h1><pre class="source lang-java linenums">package org.pojomatic.diff;
+
+import java.util.Collections;
+import java.util.List;
+
+import org.pojomatic.Pojomatic;
+import org.pojomatic.annotations.Property;
+
+public class PropertyDifferences implements Differences {
+  @Property
+  private final List&lt;Difference&gt; differences;
+
+  /**
+   * @param differences cannot be {@code null} or empty
+   * @throws NullPointerException if {@code differences} is {@code null}
+   * @throws IllegalArgumentException if {@code differences.isEmpty()} is {@code true}
+   */
+<span class="fc" id="L18">  public PropertyDifferences(List&lt;Difference&gt; differences) {</span>
+<span class="fc bfc" id="L19" title="All 2 branches covered.">    if (differences == null) {</span>
+<span class="fc" id="L20">      throw new NullPointerException(&quot;list of differences is null&quot;);</span>
+    }
+<span class="fc bfc" id="L22" title="All 2 branches covered.">    if (differences.isEmpty()) {</span>
+<span class="fc" id="L23">      throw new IllegalArgumentException(&quot;list of differences is empty&quot;);</span>
+    }
+<span class="fc" id="L25">    this.differences = Collections.unmodifiableList(differences);</span>
+<span class="fc" id="L26">  }</span>
+
+  @Override
+  public List&lt;Difference&gt; differences() {
+<span class="fc" id="L30">    return differences;</span>
+  }
+
+  @Override
+  public boolean areEqual() {
+<span class="fc" id="L35">    return false;</span>
+  }
+
+  @Override
+  public String toString() {
+<span class="fc" id="L40">    return differences.toString();</span>
+  }
+
+  @Override
+  public boolean equals(Object other) {
+<span class="fc" id="L45">    return Pojomatic.equals(this, other);</span>
+  }
+
+  @Override
+  public int hashCode() {
+<span class="nc" id="L50">    return Pojomatic.hashCode(this);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

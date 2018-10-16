@@ -139,13 +139,13 @@
 <a class="jxr_linenumber" name="L131" href="#L131">131</a>       <strong class="jxr_keyword">protected</strong> <a href="../../../org/pojomatic/internal/ClassPropertiesTest.html">Parent</a>(<strong class="jxr_keyword">int</strong> x) { <strong class="jxr_keyword">this</strong>.x = x; }
 <a class="jxr_linenumber" name="L132" href="#L132">132</a>       @Property <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">int</strong> x;
 <a class="jxr_linenumber" name="L133" href="#L133">133</a>     }
-<a class="jxr_linenumber" name="L134" href="#L134">134</a>     <strong class="jxr_keyword">class</strong> <a href="../../../org/pojomatic/internal/EqualsInheritanceTest.html">Child</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/pojomatic/internal/ClassPropertiesTest.html">Parent</a> {
-<a class="jxr_linenumber" name="L135" href="#L135">135</a>       <strong class="jxr_keyword">public</strong> <a href="../../../org/pojomatic/internal/EqualsInheritanceTest.html">Child</a>(<strong class="jxr_keyword">int</strong> x1, <strong class="jxr_keyword">int</strong> x2) { <strong class="jxr_keyword">super</strong>(x1); <strong class="jxr_keyword">this</strong>.x = x2; }
+<a class="jxr_linenumber" name="L134" href="#L134">134</a>     <strong class="jxr_keyword">class</strong> <a href="../../../org/pojomatic/internal/PojomatorFactoryTest.html">Child</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/pojomatic/internal/ClassPropertiesTest.html">Parent</a> {
+<a class="jxr_linenumber" name="L135" href="#L135">135</a>       <strong class="jxr_keyword">public</strong> <a href="../../../org/pojomatic/internal/PojomatorFactoryTest.html">Child</a>(<strong class="jxr_keyword">int</strong> x1, <strong class="jxr_keyword">int</strong> x2) { <strong class="jxr_keyword">super</strong>(x1); <strong class="jxr_keyword">this</strong>.x = x2; }
 <a class="jxr_linenumber" name="L136" href="#L136">136</a>       @Property <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">int</strong> x;
 <a class="jxr_linenumber" name="L137" href="#L137">137</a>     }
 <a class="jxr_linenumber" name="L138" href="#L138">138</a>     Pojomator&lt;Child&gt; pojomator = PojomatorFactory.makePojomator(Child.<strong class="jxr_keyword">class</strong>);
-<a class="jxr_linenumber" name="L139" href="#L139">139</a>     assertTrue(pojomator.doEquals(<strong class="jxr_keyword">new</strong> <a href="../../../org/pojomatic/internal/EqualsInheritanceTest.html">Child</a>(1, 2), <strong class="jxr_keyword">new</strong> <a href="../../../org/pojomatic/internal/EqualsInheritanceTest.html">Child</a>(1, 2)));
-<a class="jxr_linenumber" name="L140" href="#L140">140</a>     assertFalse(pojomator.doEquals(<strong class="jxr_keyword">new</strong> <a href="../../../org/pojomatic/internal/EqualsInheritanceTest.html">Child</a>(1, 2), <strong class="jxr_keyword">new</strong> <a href="../../../org/pojomatic/internal/EqualsInheritanceTest.html">Child</a>(2, 1)));
+<a class="jxr_linenumber" name="L139" href="#L139">139</a>     assertTrue(pojomator.doEquals(<strong class="jxr_keyword">new</strong> <a href="../../../org/pojomatic/internal/PojomatorFactoryTest.html">Child</a>(1, 2), <strong class="jxr_keyword">new</strong> <a href="../../../org/pojomatic/internal/PojomatorFactoryTest.html">Child</a>(1, 2)));
+<a class="jxr_linenumber" name="L140" href="#L140">140</a>     assertFalse(pojomator.doEquals(<strong class="jxr_keyword">new</strong> <a href="../../../org/pojomatic/internal/PojomatorFactoryTest.html">Child</a>(1, 2), <strong class="jxr_keyword">new</strong> <a href="../../../org/pojomatic/internal/PojomatorFactoryTest.html">Child</a>(2, 1)));
 <a class="jxr_linenumber" name="L141" href="#L141">141</a>   }
 <a class="jxr_linenumber" name="L142" href="#L142">142</a> 
 <a class="jxr_linenumber" name="L143" href="#L143">143</a>   <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/pojomatic/internal/PojomatorFactoryTest.html">InitializablePropertyFormatter</a> <strong class="jxr_keyword">extends</strong> DefaultEnhancedPropertyFormatter {
@@ -291,6 +291,6 @@
 <a class="jxr_linenumber" name="L283" href="#L283">283</a> }
 </pre>
 <hr/>
-<div id="footer">Copyright &#169; 2008&#x2013;2014. All rights reserved.</div>
+<div id="footer">Copyright &#169; 2008&#x2013;2018. All rights reserved.</div>
 </body>
 </html>

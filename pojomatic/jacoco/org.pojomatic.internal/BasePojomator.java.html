@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BasePojomator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Pojomatic</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic.internal</a> &gt; <span class="el_source">BasePojomator.java</span></div><h1>BasePojomator.java</h1><pre class="source lang-java linenums">package org.pojomatic.internal;
+
+import java.lang.invoke.CallSite;
+import java.lang.invoke.ConstantCallSite;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.util.Arrays;
+
+import org.pojomatic.Pojomator;
+import org.pojomatic.PropertyElement;
+
+public abstract class BasePojomator&lt;T&gt; implements Pojomator&lt;T&gt; {
+  protected final Class&lt;?&gt; pojoClass;
+  private final ClassProperties classProperties;
+
+<span class="fc" id="L23">  protected BasePojomator(Class&lt;?&gt; pojoClass, ClassProperties classProperties) {</span>
+<span class="fc" id="L24">    this.pojoClass = pojoClass;</span>
+<span class="fc" id="L25">    this.classProperties = classProperties;</span>
+<span class="fc" id="L26">  }</span>
+
+  @Override
+  public boolean isCompatibleForEquality(Class&lt;?&gt; otherClass) {
+<span class="fc" id="L30">    return classProperties.isCompatibleForEquals(otherClass);</span>
+  }
+
+  @Override
+  public String toString() {
+<span class="nc" id="L35">    StringBuilder builder = new StringBuilder();</span>
+<span class="nc" id="L36">    builder.append(&quot;Pojomator for &quot;).append(pojoClass.getName()).append(&quot; with equals properties &quot;);</span>
+<span class="nc" id="L37">    propertiesList(builder, classProperties.getEqualsProperties());</span>
+<span class="nc" id="L38">    builder.append(&quot;, hashCodeProperties &quot;);</span>
+<span class="nc" id="L39">    propertiesList(builder, classProperties.getHashCodeProperties());</span>
+<span class="nc" id="L40">    builder.append(&quot;, and toStringProperties &quot;);</span>
+<span class="nc" id="L41">    propertiesList(builder, classProperties.getToStringProperties());</span>
+<span class="nc" id="L42">    return builder.toString();</span>
+  }
+
+  private void propertiesList(StringBuilder builder, final Iterable&lt;PropertyElement&gt; properties) {
+<span class="nc" id="L46">    builder.append(&quot;{&quot;);</span>
+<span class="nc" id="L47">    boolean firstElement = true;</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">    for (PropertyElement prop: properties) {</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">      if (!firstElement) {</span>
+<span class="nc" id="L50">        builder.append(&quot;,&quot;);</span>
+      }
+      else {
+<span class="nc" id="L53">        firstElement = false;</span>
+      }
+<span class="nc" id="L55">      builder.append(prop.getName());</span>
+<span class="nc" id="L56">    }</span>
+<span class="nc" id="L57">    builder.append(&quot;}&quot;);</span>
+<span class="nc" id="L58">  }</span>
+
+  /**
+   * Construct a call site for a property accessor. Because {@code pojoClass} might not be a public class, the
+   * parameter in {@code methodType} cannot be {@code pojoClass}, but instead must be just {@code Object.class}. The
+   * {@code pojoClass} parameter will be stored as static field in the Pojomator class, and passed in from it's
+   * bootstrap method.
+   * @param caller A Lookup from the original call site.
+   * @param name the name of the dynamic method. This should either be &quot;field_&amp;lt;fieldName&amp;gt;&quot; or &quot;method_&amp;lt;methodName&amp;gt;&quot;.
+   * @param methodType the type of the dynamic method; the return type should be the type of the aforementioned field
+   *   or method
+   * @param pojomatorClass the type of the pojomator class
+   * @return a CallSite which invokes the method or gets the field value.
+   * @throws Throwable if there are reflection issues
+   */
+  protected static CallSite bootstrap(
+      MethodHandles.Lookup caller, String name, MethodType methodType, Class&lt;?&gt; pojomatorClass)
+      throws Throwable {
+<span class="fc" id="L76">    return new ConstantCallSite(</span>
+<span class="fc" id="L77">      MethodHandles.explicitCastArguments(</span>
+<span class="fc" id="L78">        getTypedMethod(caller, name, pojomatorClass),</span>
+<span class="fc" id="L79">        MethodType.methodType(methodType.returnType(), Object.class)));</span>
+  }
+
+  /**
+   * Compare two values of static type Object for equality. If both values are arrays, then they will be considered
+   * equal iff they have the same class, and (recursively) an equal set of elements.
+   * @param instanceValue the first value to compare
+   * @param otherValue the second value to compare
+   * @return true if {@code instanceValue} and {@code otherValue} are equal to each other.
+   */
+  protected static boolean areObjectValuesEqual(Object instanceValue, Object otherValue) {
+<span class="fc bfc" id="L90" title="All 2 branches covered.">    if (instanceValue == otherValue) {</span>
+<span class="fc" id="L91">      return true;</span>
+    }
+<span class="fc bfc" id="L93" title="All 4 branches covered.">    if (instanceValue == null || otherValue == null) {</span>
+<span class="fc" id="L94">      return false;</span>
+    }
+    else {
+<span class="fc bfc" id="L97" title="All 2 branches covered.">      if (!instanceValue.getClass().isArray()) {</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">        if (!instanceValue.equals(otherValue)) {</span>
+<span class="fc" id="L99">          return false;</span>
+        }
+      }
+      else {
+<span class="fc" id="L103">        return compareArrays(instanceValue, otherValue);</span>
+      }
+    }
+<span class="fc" id="L106">    return true;</span>
+  }
+
+  /**
+   * Compare two values of array type for equality. They will be considered
+   * equal iff they have the same class, and (recursively) an equal set of elements.
+   * @param instanceValue the first value to compare
+   * @param otherValue the second value to compare
+   * @return true if {@code instanceValue} and {@code otherValue} are equal to each other.
+   */
+  protected static boolean compareArrays(Object instanceValue, Object otherValue) {
+<span class="fc bfc" id="L117" title="All 2 branches covered.">    if (instanceValue == otherValue) {</span>
+<span class="fc" id="L118">      return true;</span>
+    }
+<span class="fc bfc" id="L120" title="All 4 branches covered.">    if (instanceValue == null || otherValue == null) {</span>
+<span class="fc" id="L121">      return false;</span>
+    }
+<span class="fc bfc" id="L123" title="All 2 branches covered.">    if (!instanceValue.getClass().equals(otherValue.getClass())) {</span>
+<span class="fc" id="L124">      return false;</span>
+    }
+<span class="fc" id="L126">    final Class&lt;?&gt; instanceComponentClass = instanceValue.getClass().getComponentType();</span>
+
+<span class="fc bfc" id="L128" title="All 2 branches covered.">    if (!instanceComponentClass.isPrimitive()) {</span>
+<span class="fc" id="L129">      return Arrays.deepEquals((Object[]) instanceValue, (Object[]) otherValue);</span>
+    }
+    else { // instanceComponentClass is primitive
+<span class="fc bfc" id="L132" title="All 2 branches covered.">      if (Boolean.TYPE == instanceComponentClass) {</span>
+<span class="fc" id="L133">        return Arrays.equals((boolean[]) instanceValue, (boolean[]) otherValue);</span>
+      }
+<span class="fc bfc" id="L135" title="All 2 branches covered.">      else if (Byte.TYPE == instanceComponentClass) {</span>
+<span class="fc" id="L136">        return Arrays.equals((byte[]) instanceValue, (byte[]) otherValue);</span>
+      }
+<span class="fc bfc" id="L138" title="All 2 branches covered.">      else if (Character.TYPE == instanceComponentClass) {</span>
+<span class="fc" id="L139">        return Arrays.equals((char[]) instanceValue, (char[]) otherValue);</span>
+      }
+<span class="fc bfc" id="L141" title="All 2 branches covered.">      else if (Short.TYPE == instanceComponentClass) {</span>
+<span class="fc" id="L142">        return Arrays.equals((short[]) instanceValue, (short[]) otherValue);</span>
+      }
+<span class="fc bfc" id="L144" title="All 2 branches covered.">      else if (Integer.TYPE == instanceComponentClass) {</span>
+<span class="fc" id="L145">        return Arrays.equals((int[]) instanceValue, (int[]) otherValue);</span>
+      }
+<span class="fc bfc" id="L147" title="All 2 branches covered.">      else if (Long.TYPE == instanceComponentClass) {</span>
+<span class="fc" id="L148">        return Arrays.equals((long[]) instanceValue, (long[]) otherValue);</span>
+      }
+<span class="fc bfc" id="L150" title="All 2 branches covered.">      else if (Float.TYPE == instanceComponentClass) {</span>
+<span class="fc" id="L151">        return Arrays.equals((float[]) instanceValue, (float[]) otherValue);</span>
+      }
+<span class="pc bpc" id="L153" title="1 of 2 branches missed.">      else if (Double.TYPE == instanceComponentClass) {</span>
+<span class="fc" id="L154">        return Arrays.equals((double[]) instanceValue, (double[]) otherValue);</span>
+      }
+      else {
+        // should NEVER happen
+<span class="nc" id="L158">        throw new IllegalStateException(</span>
+<span class="nc" id="L159">          &quot;unknown primitive type &quot; + instanceComponentClass.getName());</span>
+      }
+    }
+  }
+
+
+  /**
+   * Given an object which is of array type, compute it's hashCode by calling the appropriate signature of
+   * {@link Arrays}{@code .hashCode()}
+   * @param array the array
+   * @param deepArray whether to do a deep hashCode for Object arrays.
+   * @return the hashCode
+   */
+  protected static int arrayHashCode(Object array, boolean deepArray) {
+<span class="fc" id="L173">    Class&lt;?&gt; componentType = array.getClass().getComponentType();</span>
+<span class="fc bfc" id="L174" title="All 2 branches covered.">    if (! componentType.isPrimitive()) {</span>
+<span class="pc bpc" id="L175" title="1 of 2 branches missed.">      return deepArray ? Arrays.deepHashCode((Object[]) array) : Arrays.hashCode((Object[]) array);</span>
+    }
+<span class="fc bfc" id="L177" title="All 2 branches covered.">    if (componentType == boolean.class) {</span>
+<span class="fc" id="L178">      return Arrays.hashCode((boolean[]) array);</span>
+    }
+<span class="fc bfc" id="L180" title="All 2 branches covered.">    if (componentType == byte.class) {</span>
+<span class="fc" id="L181">      return Arrays.hashCode((byte[]) array);</span>
+    }
+<span class="fc bfc" id="L183" title="All 2 branches covered.">    if (componentType == char.class) {</span>
+<span class="fc" id="L184">      return Arrays.hashCode((char[]) array);</span>
+    }
+<span class="fc bfc" id="L186" title="All 2 branches covered.">    if (componentType == short.class) {</span>
+<span class="fc" id="L187">      return Arrays.hashCode((short[]) array);</span>
+    }
+<span class="fc bfc" id="L189" title="All 2 branches covered.">    if (componentType == int.class) {</span>
+<span class="fc" id="L190">      return Arrays.hashCode((int[]) array);</span>
+    }
+<span class="fc bfc" id="L192" title="All 2 branches covered.">    if (componentType == long.class) {</span>
+<span class="fc" id="L193">      return Arrays.hashCode((long[]) array);</span>
+    }
+<span class="fc bfc" id="L195" title="All 2 branches covered.">    if (componentType == float.class) {</span>
+<span class="fc" id="L196">      return Arrays.hashCode((float[]) array);</span>
+    }
+<span class="pc bpc" id="L198" title="1 of 2 branches missed.">    if (componentType == double.class) {</span>
+<span class="fc" id="L199">      return Arrays.hashCode((double[]) array);</span>
+    }
+<span class="nc" id="L201">    throw new IllegalStateException(&quot;unknown primitive type &quot; + componentType.getName());</span>
+  }
+
+  protected static &lt;T&gt; T checkNotNull(T reference) {
+<span class="fc bfc" id="L205" title="All 2 branches covered.">    if (reference == null) {</span>
+<span class="fc" id="L206">      throw new NullPointerException();</span>
+    }
+<span class="fc" id="L208">    return reference;</span>
+  }
+
+  protected static &lt;T&gt; T checkNotNull(T reference, String message) {
+<span class="fc bfc" id="L212" title="All 2 branches covered.">    if (reference == null) {</span>
+<span class="fc" id="L213">      throw new NullPointerException(message);</span>
+    }
+<span class="fc" id="L215">    return reference;</span>
+  }
+
+  protected static void checkNotNullPop(Object reference) {
+<span class="fc bfc" id="L219" title="All 2 branches covered.">    if (reference == null) {</span>
+<span class="fc" id="L220">      throw new NullPointerException();</span>
+    }
+<span class="fc" id="L222">  }</span>
+
+  protected void checkCompatibleForEquality(T instance, String label) {
+<span class="fc bfc" id="L225" title="All 2 branches covered.">    if (!isCompatibleForEquality(instance.getClass())) {</span>
+<span class="fc" id="L226">      throw new IllegalArgumentException(</span>
+<span class="fc" id="L227">        label + &quot; has type &quot; + instance.getClass().getName()</span>
+<span class="fc" id="L228">        + &quot; which is not compatible for equality with &quot; + pojoClass.getName());</span>
+    }
+<span class="fc" id="L230">  }</span>
+
+  /**
+   * Get a method handle to access a field or invoke a no-arg method.
+   * @param caller A Lookup from the original call site.
+   * @param name the name of the dynamic method. This should be of the form &quot;get_xxx&quot;, where &quot;element_xxx&quot; will be a
+   * static field containing a {@link PropertyElement} instance referring to the property to be accessed.
+   * @param pojomatorClass the type of the pojomator class
+   * @return the MethodHandle
+   * @throws Throwable
+   */
+  private static MethodHandle getTypedMethod(
+    final MethodHandles.Lookup caller, final String name, final Class&lt;?&gt; pojomatorClass)
+    throws Throwable {
+    try {
+<span class="fc" id="L245">      return AccessController.doPrivileged(new PrivilegedExceptionAction&lt;MethodHandle&gt;() {</span>
+        @Override
+        public MethodHandle run() throws Exception {
+<span class="fc" id="L248">          return getTypedMethodPrivileged(caller, name, pojomatorClass);</span>
+        }
+      });
+<span class="nc" id="L251">    } catch (PrivilegedActionException e) {</span>
+<span class="nc" id="L252">      throw e.getCause();</span>
+    }
+  }
+
+  /**
+   * Do the work for {@link #getTypedMethod(java.lang.invoke.MethodHandles.Lookup, String, Class)}. This method will be
+   * run inside of a {@link AccessController#doPrivileged(PrivilegedExceptionAction)} block, hence should make sure to
+   * not run untrusted code.
+   * @param pojomatorClass the type of the pojomator class
+   * @return the MethodHandle
+   * @throws NoSuchFieldException
+   * @throws IllegalAccessException
+   */
+  private static MethodHandle getTypedMethodPrivileged(
+    MethodHandles.Lookup caller, String name, Class&lt;?&gt; pojomatorClass)
+    throws NoSuchFieldException, IllegalAccessException {
+<span class="fc" id="L268">    String elementName = &quot;element_&quot; + name.substring(4);</span>
+<span class="fc" id="L269">    Field elementField = pojomatorClass.getDeclaredField(elementName);</span>
+<span class="fc" id="L270">    elementField.setAccessible(true);</span>
+<span class="fc" id="L271">    PropertyElement property = (PropertyElement) elementField.get(null);</span>
+<span class="fc" id="L272">    AnnotatedElement element = property.getElement();</span>
+    // Note that while element is a reference to untrusted code, we do not actually invoke this code inside a
+    // doPrivileged block - we merely make it accessible to be invoked later, outside of a doPriviliged block
+<span class="fc bfc" id="L275" title="All 2 branches covered.">    if (element instanceof Field) {</span>
+<span class="fc" id="L276">      Field field = (Field) element;</span>
+<span class="fc" id="L277">      field.setAccessible(true);</span>
+<span class="fc" id="L278">      return caller.unreflectGetter(field);</span>
+    }
+<span class="pc bpc" id="L280" title="1 of 2 branches missed.">    else if (element instanceof Method) {</span>
+<span class="fc" id="L281">      Method method = (Method) element;</span>
+<span class="fc" id="L282">      method.setAccessible(true);</span>
+<span class="fc" id="L283">      return caller.unreflect(method);</span>
+    }
+    else {
+<span class="nc" id="L286">      throw new IllegalArgumentException(&quot;Cannot handle element of type &quot; + element.getClass().getName());</span>
+    }
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

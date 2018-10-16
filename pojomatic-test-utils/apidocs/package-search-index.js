@@ -1,0 +1,1 @@
+packageSearchIndex = [{"l":"org.pojomatic.junit"},{"l":"org.pojomatic.test"},{"l":"org.pojomatic.testng"}]

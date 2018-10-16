@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DefaultEnhancedPojoFormatter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Pojomatic</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic.formatter</a> &gt; <span class="el_source">DefaultEnhancedPojoFormatter.java</span></div><h1>DefaultEnhancedPojoFormatter.java</h1><pre class="source lang-java linenums">package org.pojomatic.formatter;
+
+import org.pojomatic.Pojomatic;
+import org.pojomatic.PropertyElement;
+
+/**
+ * Default formatter for classes that use {@link Pojomatic}.  This implementation first presents
+ * the class name, and then each property in turn, separated by commas, using braces to indicate
+ * nesting.
+ * &lt;p&gt;
+ * For example, if a class Person has two properties, firstName and LastName, and these properties
+ * are using {@link DefaultPropertyFormatter}, then the Person
+ * instance representing Joe Blow would be represented as
+ * &lt;code&gt;&quot;Person{firstName: {Joe}, lastName: {Blow}}&quot;&lt;/code&gt;
+ *
+ * @since 2.0
+ */
+<span class="fc" id="L18">public class DefaultEnhancedPojoFormatter implements EnhancedPojoFormatter {</span>
+<span class="fc" id="L19">  private boolean firstPropertyPrinted = false;</span>
+
+  @Override
+  public final String getPropertyPrefix(PropertyElement property) {
+<span class="nc" id="L23">    StringBuilder builder = new StringBuilder();</span>
+<span class="nc" id="L24">    appendPropertyPrefix(builder, property);</span>
+<span class="nc" id="L25">    return builder.toString();</span>
+  }
+
+  @Override
+  public final String getPropertySuffix(PropertyElement property) {
+<span class="nc" id="L30">    StringBuilder builder = new StringBuilder();</span>
+<span class="nc" id="L31">    appendPropertySuffix(builder, property);</span>
+<span class="nc" id="L32">    return builder.toString();</span>
+  }
+
+  @Override
+  public final String getToStringPrefix(Class&lt;?&gt; pojoClass) {
+<span class="nc" id="L37">    StringBuilder builder = new StringBuilder();</span>
+<span class="nc" id="L38">    appendToStringPrefix(builder, pojoClass);</span>
+<span class="nc" id="L39">    return builder.toString();</span>
+  }
+
+  @Override
+  public final String getToStringSuffix(Class&lt;?&gt; pojoClass) {
+<span class="nc" id="L44">    StringBuilder builder = new StringBuilder();</span>
+<span class="nc" id="L45">    appendToStringSuffix(builder, pojoClass);</span>
+<span class="nc" id="L46">    return builder.toString();</span>
+  }
+
+  @Override
+  public void appendToStringPrefix(StringBuilder builder, Class&lt;?&gt; pojoClass) {
+<span class="fc" id="L51">    builder.append(pojoClass.getSimpleName()).append('{');</span>
+<span class="fc" id="L52">  }</span>
+
+  @Override
+  public void appendToStringSuffix(StringBuilder builder, Class&lt;?&gt; pojoClass) {
+<span class="fc" id="L56">    builder.append('}');</span>
+<span class="fc" id="L57">  }</span>
+
+  @Override
+  public void appendPropertyPrefix(StringBuilder builder, PropertyElement property) {
+<span class="fc bfc" id="L61" title="All 2 branches covered.">    if (firstPropertyPrinted) {</span>
+<span class="fc" id="L62">      builder.append(&quot;, &quot;);</span>
+    }
+    else {
+<span class="fc" id="L65">      firstPropertyPrinted = true;</span>
+    }
+<span class="fc" id="L67">    builder.append(property.getName()).append(&quot;: {&quot;);</span>
+<span class="fc" id="L68">  }</span>
+
+  @Override
+  public void appendPropertySuffix(StringBuilder builder, PropertyElement property) {
+<span class="fc" id="L72">    builder.append('}');</span>
+<span class="fc" id="L73">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DefaultPropertyFormatter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Pojomatic</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic.formatter</a> &gt; <span class="el_source">DefaultPropertyFormatter.java</span></div><h1>DefaultPropertyFormatter.java</h1><pre class="source lang-java linenums">package org.pojomatic.formatter;
+
+import java.lang.reflect.AnnotatedElement;
+import java.util.Arrays;
+
+/**
+ * The default property formatter used by Pojomatic.  While the particulars of the formatting
+ * strategy are subject to change, the general principle is to provide a meaningful representation.
+ * In particular, arrays are formatted &quot;deeply&quot;, rather than simply showing the default toString
+ * representation of Java arrays.
+ *
+ * @deprecated Since 2.0. Use {@link DefaultEnhancedPropertyFormatter} instead.
+ */
+@Deprecated
+<span class="fc" id="L15">public class DefaultPropertyFormatter implements PropertyFormatter {</span>
+  //FIXME - this currently prevents formatter reusability, and for very little benefit. Perhaps an initializable annotation?
+  @Override
+  public void initialize(AnnotatedElement element) {
+    //Not applicable
+<span class="fc" id="L20">  }</span>
+
+  @Override
+  public String format(Object value) {
+<span class="fc bfc" id="L24" title="All 2 branches covered.">    if (value == null) {</span>
+<span class="fc" id="L25">      return &quot;null&quot;;</span>
+    }
+<span class="fc bfc" id="L27" title="All 2 branches covered.">    else if (value.getClass().isArray()) {</span>
+<span class="fc" id="L28">      Class&lt;?&gt; componentClass = value.getClass().getComponentType();</span>
+<span class="fc bfc" id="L29" title="All 2 branches covered.">      if (componentClass.isPrimitive()) {</span>
+<span class="fc bfc" id="L30" title="All 2 branches covered.">        if (Boolean.TYPE == componentClass) {</span>
+<span class="fc" id="L31">          return Arrays.toString((boolean[]) value);</span>
+        }
+<span class="fc bfc" id="L33" title="All 2 branches covered.">        if (Character.TYPE == componentClass) {</span>
+<span class="fc" id="L34">          StringBuilder builder = new StringBuilder().append('[');</span>
+<span class="fc" id="L35">          boolean seenOne = false;</span>
+<span class="fc bfc" id="L36" title="All 2 branches covered.">          for (char c: ((char[]) value)) {</span>
+<span class="fc bfc" id="L37" title="All 2 branches covered.">            if(seenOne) {</span>
+<span class="fc" id="L38">              builder.append(&quot;, &quot;);</span>
+            }
+            else {
+<span class="fc" id="L41">              seenOne = true;</span>
+            }
+<span class="fc" id="L43">            builder.append('\'');</span>
+<span class="fc bfc" id="L44" title="All 2 branches covered.">            if (Character.isISOControl(c)) {</span>
+<span class="fc" id="L45">              builder.append(&quot;0x&quot;).append(Integer.toHexString(c));</span>
+            }
+            else {
+<span class="fc" id="L48">              builder.append(c);</span>
+            }
+<span class="fc" id="L50">            builder.append('\'');</span>
+          }
+<span class="fc" id="L52">          return builder.append(']').toString();</span>
+        }
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        if (Byte.TYPE == componentClass) {</span>
+<span class="fc" id="L55">          return Arrays.toString((byte[]) value);</span>
+        }
+<span class="fc bfc" id="L57" title="All 2 branches covered.">        if (Short.TYPE == componentClass) {</span>
+<span class="fc" id="L58">          return Arrays.toString((short[]) value);</span>
+        }
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        if (Integer.TYPE == componentClass) {</span>
+<span class="fc" id="L61">          return Arrays.toString((int[]) value);</span>
+        }
+<span class="fc bfc" id="L63" title="All 2 branches covered.">        if (Long.TYPE == componentClass) {</span>
+<span class="fc" id="L64">          return Arrays.toString((long[]) value);</span>
+        }
+<span class="fc bfc" id="L66" title="All 2 branches covered.">        if (Float.TYPE == componentClass) {</span>
+<span class="fc" id="L67">          return Arrays.toString((float[]) value);</span>
+        }
+<span class="pc bpc" id="L69" title="1 of 2 branches missed.">        if (Double.TYPE == componentClass) {</span>
+<span class="fc" id="L70">          return Arrays.toString((double[]) value);</span>
+        }
+        else {
+<span class="nc" id="L73">          throw new IllegalStateException(&quot;unexpected primitive array base type: &quot; + componentClass);</span>
+        }
+      }
+      else {
+<span class="fc" id="L77">        return Arrays.deepToString((Object[]) value);</span>
+      }
+    }
+    else {
+<span class="fc" id="L81">      return value.toString();</span>
+    }
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

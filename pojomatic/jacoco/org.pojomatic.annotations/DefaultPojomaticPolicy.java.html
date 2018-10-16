@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DefaultPojomaticPolicy.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Pojomatic</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic.annotations</a> &gt; <span class="el_source">DefaultPojomaticPolicy.java</span></div><h1>DefaultPojomaticPolicy.java</h1><pre class="source lang-java linenums">package org.pojomatic.annotations;
+
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Set;import java.util.Arrays;
+
+import org.pojomatic.Pojomatic;
+import org.pojomatic.internal.PropertyRole;
+
+/**
+ * A policy for defining which sets of {@link Pojomatic} operations
+ * ({@code equals}, {@code hashCode} and {@code toString}) should use all properties by default.
+ * This is set class-wide using {@link AutoProperty}.
+ * @see PojomaticPolicy
+ */
+<span class="fc" id="L16">public enum DefaultPojomaticPolicy {</span>
+
+  /**
+   * Use all properties for both {@code hashCode} and {@code equals} by default.
+   * Anything included in {@code public int hashCode()} should also be included in
+   * {@code public boolean equals(Object)} to preserve the general
+   * contract of {@link Object#hashCode()}.
+   *
+   * @see Object#hashCode()
+   * @see Object#equals(Object)
+   */
+<span class="fc" id="L27">  HASHCODE_EQUALS(PropertyRole.HASH_CODE, PropertyRole.EQUALS),</span>
+
+  /**
+   * Use all properties for {@code equals} only by default.
+   *
+   * @see Object#equals(Object)
+   */
+<span class="fc" id="L34">  EQUALS(PropertyRole.EQUALS),</span>
+
+  /**
+   * Use all properties for both {@code equals} and {@code toString} by default.
+   *
+   * @see Object#equals(Object)
+   * @see Object#toString()
+   */
+<span class="fc" id="L42">  EQUALS_TO_STRING(PropertyRole.EQUALS, PropertyRole.TO_STRING),</span>
+
+  /**
+   * Use all properties for both {@code toString} only by default.
+   *
+   * @see Object#toString()
+   */
+<span class="fc" id="L49">  TO_STRING(PropertyRole.TO_STRING),</span>
+
+  /**
+   * Use all properties for {@code hashCode}, {@code equals} and {@code toString} by default.
+   */
+<span class="fc" id="L54">  ALL(PropertyRole.EQUALS, PropertyRole.HASH_CODE, PropertyRole.TO_STRING),</span>
+
+  /**
+   * Do not use any properties for any of {@code hashCode}, {@code equals} or {@code toString}
+   * by default.
+   */
+<span class="fc" id="L60">  NONE();</span>
+
+  /**
+   * @return the roles this specified by this policy.
+   */
+  public Set&lt;PropertyRole&gt; getRoles() {
+<span class="fc" id="L66">    return roles;</span>
+  }
+
+<span class="fc" id="L69">  private DefaultPojomaticPolicy(PropertyRole... roles) {</span>
+<span class="fc" id="L70">    Set&lt;PropertyRole&gt; roleSet = EnumSet.noneOf(PropertyRole.class);</span>
+<span class="fc" id="L71">    roleSet.addAll(Arrays.asList(roles));</span>
+<span class="fc" id="L72">    this.roles = Collections.unmodifiableSet(roleSet);</span>
+<span class="fc" id="L73">  }</span>
+
+  private final Set&lt;PropertyRole&gt; roles;
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

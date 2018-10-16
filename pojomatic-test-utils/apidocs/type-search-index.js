@@ -1,0 +1,1 @@
+typeSearchIndex = [{"p":"org.pojomatic.test","l":"AssertUtils"},{"p":"org.pojomatic.junit","l":"PojomaticAssert"},{"p":"org.pojomatic.testng","l":"PojomaticAssert"}]

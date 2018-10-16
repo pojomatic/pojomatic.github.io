@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ClassDefinerFactory.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Pojomatic</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic.internal</a> &gt; <span class="el_source">ClassDefinerFactory.java</span></div><h1>ClassDefinerFactory.java</h1><pre class="source lang-java linenums">package org.pojomatic.internal;
+
+<span class="nc" id="L3">public class ClassDefinerFactory {</span>
+  private static volatile ClassDefiner CLASS_DEFINER;
+<span class="fc" id="L5">  private final static Object MUTEX = new Object();</span>
+
+  // Avoid initializing when the class is first loaded, so that any exceptions don't get masked as NoClassDefFoundErrors
+  public static ClassDefiner getDefiner() {
+<span class="fc bfc" id="L9" title="All 2 branches covered.">    if (CLASS_DEFINER == null) {</span>
+<span class="fc" id="L10">      synchronized (MUTEX) {</span>
+<span class="pc bpc" id="L11" title="1 of 2 branches missed.">        if (CLASS_DEFINER == null) {</span>
+<span class="fc" id="L12">          CLASS_DEFINER = makeDefiner();</span>
+        }
+<span class="fc" id="L14">      }</span>
+    }
+<span class="fc" id="L16">    return CLASS_DEFINER;</span>
+  }
+
+  private static ClassDefiner makeDefiner() {
+    try {
+<span class="fc" id="L21">      return (ClassDefiner) ClassDefiner.class.getClassLoader().loadClass(&quot;org.pojomatic.internal.LookupClassDefiner&quot;)</span>
+<span class="fc" id="L22">        .getConstructor()</span>
+<span class="fc" id="L23">        .newInstance();</span>
+<span class="nc" id="L24">    } catch (ReflectiveOperationException e) {</span>
+<span class="nc" id="L25">      return new ClassLoaderClassDefiner();</span>
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

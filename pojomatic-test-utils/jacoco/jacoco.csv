@@ -1,0 +1,4 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+PojomaticTestUtils,org.pojomatic.test,AssertUtils,0,104,0,14,0,20,0,11,0,4
+PojomaticTestUtils,org.pojomatic.testng,PojomaticAssert,0,10,0,0,0,4,0,2,0,2
+PojomaticTestUtils,org.pojomatic.junit,PojomaticAssert,0,10,0,0,0,4,0,2,0,2

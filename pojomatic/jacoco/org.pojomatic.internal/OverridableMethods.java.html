@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OverridableMethods.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Pojomatic</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic.internal</a> &gt; <span class="el_source">OverridableMethods.java</span></div><h1>OverridableMethods.java</h1><pre class="source lang-java linenums">package org.pojomatic.internal;
+
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.*;
+
+/**
+ * A mutable set of methods which can be overridden.  All methods are assumed to take no arguments
+ * and either public, protected or package private.
+ */
+<span class="fc" id="L11">class OverridableMethods {</span>
+
+  /**
+   * Check to see if roles should be added to a method, and add them if so.  Only roles not already
+   * on the method will be added.  If {@code method} already has an
+   * {@link PropertyRole#EQUALS EQUALS} role, and it is requested to add the
+   * {@link PropertyRole#HASH_CODE HASH_CODE} role, an {@link IllegalArgumentException} will be
+   * thrown.
+   *
+   * @param method the method to check
+   * @param newRoles the roles to add
+   * @return the roles which were actually added.
+   * @throws IllegalArgumentException if {@code method} already has an
+   * {@link PropertyRole#EQUALS EQUALS} role, and it is requested to add the
+   * {@link PropertyRole#HASH_CODE HASH_CODE} role
+   */
+  Set&lt;PropertyRole&gt; checkAndMaybeAddRolesToMethod(Method method, Set&lt;PropertyRole&gt; newRoles) {
+<span class="fc" id="L28">    Set&lt;PropertyRole&gt; existingRoles = findExistingRoles(method);</span>
+<span class="fc bfc" id="L29" title="All 2 branches covered.">    if (existingRoles.contains(PropertyRole.EQUALS)</span>
+<span class="fc bfc" id="L30" title="All 2 branches covered.">      &amp;&amp; !existingRoles.contains(PropertyRole.HASH_CODE)</span>
+<span class="fc bfc" id="L31" title="All 2 branches covered.">      &amp;&amp; newRoles.contains(PropertyRole.HASH_CODE)) {</span>
+<span class="fc" id="L32">      throw new IllegalArgumentException(</span>
+<span class="fc" id="L33">        &quot;Method &quot; + method.getDeclaringClass().getName() + &quot;.&quot; + method.getName()</span>
+          + &quot; is requested to be included in hashCode computations, but already overrides a method&quot;
+          + &quot; which is requested for equals computations, but not hashCode computations.&quot;);
+    }
+<span class="fc" id="L37">    Set&lt;PropertyRole&gt; addedRoles = EnumSet.noneOf(PropertyRole.class);</span>
+<span class="fc bfc" id="L38" title="All 2 branches covered.">    for (PropertyRole role : newRoles) {</span>
+<span class="fc bfc" id="L39" title="All 2 branches covered.">      if (!existingRoles.contains(role)) {</span>
+<span class="fc" id="L40">        addedRoles.add(role);</span>
+<span class="fc" id="L41">        existingRoles.add(role);</span>
+      }
+<span class="fc" id="L43">    }</span>
+<span class="fc" id="L44">    return addedRoles;</span>
+  }
+
+  private Set&lt;PropertyRole&gt; findExistingRoles(Method method) {
+    Set&lt;PropertyRole&gt; existingRoles;
+<span class="fc bfc" id="L49" title="All 2 branches covered.">    if (isPackagePrivate(method)) {</span>
+      // This can only override another package private method
+<span class="fc" id="L51">      PackageMethod key = new PackageMethod(method);</span>
+<span class="fc" id="L52">      existingRoles = packageMethods.get(key);</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">      if (existingRoles == null) {</span>
+<span class="fc" id="L54">        existingRoles = EnumSet.noneOf(PropertyRole.class);</span>
+<span class="fc" id="L55">        packageMethods.put(key, existingRoles);</span>
+      }
+<span class="fc" id="L57">    }</span>
+    else {
+      // If there is a public method already declared, then this is an override.  Otherwise,
+      // we need to track it as a public override going forward, even if it is overriding a
+      // superclass method which was declared package private.
+<span class="fc" id="L62">      existingRoles = publicOrProtectedMethods.get(method.getName());</span>
+<span class="fc bfc" id="L63" title="All 2 branches covered.">      if (existingRoles == null) {</span>
+<span class="fc" id="L64">        existingRoles = packageMethods.get(new PackageMethod(method));</span>
+      }
+<span class="fc bfc" id="L66" title="All 2 branches covered.">      if (existingRoles == null) {</span>
+<span class="fc" id="L67">        existingRoles = EnumSet.noneOf(PropertyRole.class);</span>
+<span class="fc" id="L68">        publicOrProtectedMethods.put(method.getName(), existingRoles);</span>
+      }
+    }
+<span class="fc" id="L71">    return existingRoles;</span>
+  }
+
+  /**
+   * A bean to track the package and name of a package-private method
+   */
+  private static class PackageMethod {
+<span class="fc" id="L78">    PackageMethod(Method method) {</span>
+<span class="fc" id="L79">      name = method.getName();</span>
+<span class="fc" id="L80">      pakage = method.getDeclaringClass().getPackage();</span>
+<span class="fc" id="L81">    }</span>
+
+    final String name;
+    final Package pakage;
+
+    @Override
+    public int hashCode() {
+<span class="fc" id="L88">      return name.hashCode() * 31 + pakage.hashCode();</span>
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+<span class="pc bpc" id="L93" title="1 of 2 branches missed.">      if (this == obj) {</span>
+<span class="nc" id="L94">        return true;</span>
+      }
+<span class="pc bpc" id="L96" title="1 of 2 branches missed.">      if (obj instanceof PackageMethod) {</span>
+<span class="fc" id="L97">        PackageMethod other = (PackageMethod) obj;</span>
+<span class="pc bpc" id="L98" title="2 of 4 branches missed.">        return name.equals(other.name) &amp;&amp; pakage.equals(other.pakage);</span>
+      }
+      else {
+<span class="nc" id="L101">        return false;</span>
+      }
+    }
+  }
+
+<span class="fc" id="L106">  private final Map&lt;String, Set&lt;PropertyRole&gt;&gt; publicOrProtectedMethods = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L107">  private final Map&lt;PackageMethod, Set&lt;PropertyRole&gt;&gt; packageMethods = new HashMap&lt;&gt;();</span>
+
+
+  private static boolean isPackagePrivate(Method method) {
+<span class="fc bfc" id="L111" title="All 2 branches covered.">    return !(Modifier.isPublic(method.getModifiers())</span>
+<span class="fc bfc" id="L112" title="All 2 branches covered.">      || Modifier.isProtected(method.getModifiers()));</span>
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

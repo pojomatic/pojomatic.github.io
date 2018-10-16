@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PojomaticAssert.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">PojomaticTestUtils</a> &gt; <a href="index.source.html" class="el_package">org.pojomatic.testng</a> &gt; <span class="el_source">PojomaticAssert.java</span></div><h1>PojomaticAssert.java</h1><pre class="source lang-java linenums">package org.pojomatic.testng;
+
+import org.pojomatic.Pojomatic;
+import org.pojomatic.test.AssertUtils;
+
+/**
+ * Pojomatic-related TestNG-style assertion methods useful for writing tests.
+ * @see org.testng.Assert
+ */
+public class PojomaticAssert {
+
+  /**
+   * Asserts that two objects are either both null or are equal according to
+   * {@link Object#equals(Object)}. If not, an {@code AssertionError} is thrown. If the objects are
+   * not equal, but the types of two objects are compatible for equality, then the differences as
+   * determined by {@link Pojomatic#diff(Object, Object)} are included in the failure message.
+   *
+   * @param expected the expected object
+   * @param actual the object which should be tested to equal the expected object
+   * @throws AssertionError if the objects are not equal, with details of the differences
+   * included in the message
+   * @see #assertEqualsWithDiff(Object, Object, String)
+   */
+  public static void assertEqualsWithDiff(Object actual, Object expected) {
+<span class="fc" id="L25">    assertEqualsWithDiff(actual, expected, null);</span>
+<span class="fc" id="L26">  }</span>
+
+  /**
+   * Asserts that two objects are either both null or are equal according to
+   * {@link Object#equals(Object)}. If not, an {@code AssertionError} is thrown. If the objects are
+   * not equal, but the types of two objects are compatible for equality, then the differences as
+   * determined by {@link Pojomatic#diff(Object, Object)} are included in the failure message.
+   *
+   * @param expected the expected object
+   * @param actual the object which should be tested to equal the expected object
+   * @param message an optional message provided along with the diff if the objects are not equal
+   * @throws AssertionError if the objects are not equal, with details of the differences
+   * included in the message
+   */
+  public static void assertEqualsWithDiff(Object actual, Object expected, String message) {
+    //the arguments are passed as follows according to display order for a potential error message
+<span class="fc" id="L42">    AssertUtils.assertEquals(message, expected, actual);</span>
+<span class="fc" id="L43">  }</span>
+
+  private PojomaticAssert() {}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>
