@@ -6,7 +6,7 @@ Pojomatic,org.pojomatic.diff,PropertyDifferences,3,35,0,4,1,11,1,7,1,5
 Pojomatic,org.pojomatic.diff,ValueDifference,0,48,0,0,0,11,0,7,0,7
 Pojomatic,org.pojomatic.diff,NoDifferences,0,13,0,0,0,5,0,5,0,5
 Pojomatic,org.pojomatic.internal,Primitives,3,66,0,0,1,17,1,4,1,4
-Pojomatic,org.pojomatic.internal,PojomatorByteCodeGenerator,13,2880,1,95,0,544,1,91,0,43
+Pojomatic,org.pojomatic.internal,PojomatorByteCodeGenerator,13,2886,1,95,0,544,1,91,0,43
 Pojomatic,org.pojomatic.internal,ClassDefinerFactory,8,32,1,3,3,10,2,4,1,3
 Pojomatic,org.pojomatic.internal,LocalVariable,20,87,4,4,4,25,4,6,0,6
 Pojomatic,org.pojomatic.internal,ClassProperties.new SelfPopulatingMap() {...},0,9,0,0,0,2,0,2,0,2

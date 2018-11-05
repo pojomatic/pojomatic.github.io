@@ -87,7 +87,7 @@
 <a class="jxr_linenumber" name="L79" href="#L79">79</a>        H_INVOKESTATIC,
 <a class="jxr_linenumber" name="L80" href="#L80">80</a>        BASE_POJOMATOR_INTERNAL_NAME,
 <a class="jxr_linenumber" name="L81" href="#L81">81</a>        BOOTSTRAP_METHOD_NAME,
-<a class="jxr_linenumber" name="L82" href="#L82">82</a>        methodDesc(CallSite.<strong class="jxr_keyword">class</strong>, MethodHandles.Lookup.<strong class="jxr_keyword">class</strong>, String.<strong class="jxr_keyword">class</strong>, MethodType.<strong class="jxr_keyword">class</strong>, Class.<strong class="jxr_keyword">class</strong>));
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>        methodDesc(CallSite.<strong class="jxr_keyword">class</strong>, MethodHandles.Lookup.<strong class="jxr_keyword">class</strong>, String.<strong class="jxr_keyword">class</strong>, MethodType.<strong class="jxr_keyword">class</strong>, Class.<strong class="jxr_keyword">class</strong>), false);
 <a class="jxr_linenumber" name="L83" href="#L83">83</a>      <strong class="jxr_keyword">int</strong> propertyNumber = 1;
 <a class="jxr_linenumber" name="L84" href="#L84">84</a>      <strong class="jxr_keyword">for</strong> (PropertyElement property: classProperties.getAllProperties()) {
 <a class="jxr_linenumber" name="L85" href="#L85">85</a>        propertyNumbers.put(property, propertyNumber++);
@@ -883,7 +883,7 @@
 <a class="jxr_linenumber" name="L875" href="#L875">875</a>     <strong class="jxr_keyword">var</strong>.acceptLoad(mv);
 <a class="jxr_linenumber" name="L876" href="#L876">876</a>     mv.visitMethodInsn(
 <a class="jxr_linenumber" name="L877" href="#L877">877</a>       INVOKESTATIC, pojomatorInternalClassName, propertyAccessorName(propertyElement),
-<a class="jxr_linenumber" name="L878" href="#L878">878</a>       accessorMethodDescription(propertyElement));
+<a class="jxr_linenumber" name="L878" href="#L878">878</a>       accessorMethodDescription(propertyElement), false);
 <a class="jxr_linenumber" name="L879" href="#L879">879</a>   }
 <a class="jxr_linenumber" name="L880" href="#L880">880</a> 
 <a class="jxr_linenumber" name="L881" href="#L881">881</a>   <strong class="jxr_keyword">private</strong> String accessorMethodDescription(<a href="../../../org/pojomatic/PropertyElement.html">PropertyElement</a> propertyElement) {
@@ -969,25 +969,25 @@
 <a class="jxr_linenumber" name="L961" href="#L961">961</a> 
 <a class="jxr_linenumber" name="L962" href="#L962">962</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> invokeStatic(Class&lt;?&gt; ownerClass, String methodName, Class&lt;?&gt; returnType, Class&lt;?&gt;... parameterTypes) {
 <a class="jxr_linenumber" name="L963" href="#L963">963</a>     mv.visitMethodInsn(
-<a class="jxr_linenumber" name="L964" href="#L964">964</a>       INVOKESTATIC, internalName(ownerClass), methodName, methodDesc(returnType, parameterTypes));
+<a class="jxr_linenumber" name="L964" href="#L964">964</a>       INVOKESTATIC, internalName(ownerClass), methodName, methodDesc(returnType, parameterTypes), false);
 <a class="jxr_linenumber" name="L965" href="#L965">965</a>   }
 <a class="jxr_linenumber" name="L966" href="#L966">966</a> 
 <a class="jxr_linenumber" name="L967" href="#L967">967</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> invokeInterface(
 <a class="jxr_linenumber" name="L968" href="#L968">968</a>     Class&lt;?&gt; ownerClass, String methodName, Class&lt;?&gt; returnType, Class&lt;?&gt;... parameterTypes) {
 <a class="jxr_linenumber" name="L969" href="#L969">969</a>     mv.visitMethodInsn(
-<a class="jxr_linenumber" name="L970" href="#L970">970</a>       INVOKEINTERFACE, internalName(ownerClass), methodName, methodDesc(returnType, parameterTypes));
+<a class="jxr_linenumber" name="L970" href="#L970">970</a>       INVOKEINTERFACE, internalName(ownerClass), methodName, methodDesc(returnType, parameterTypes), <strong class="jxr_keyword">true</strong>);
 <a class="jxr_linenumber" name="L971" href="#L971">971</a>   }
 <a class="jxr_linenumber" name="L972" href="#L972">972</a> 
 <a class="jxr_linenumber" name="L973" href="#L973">973</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> invokeVirtual(
 <a class="jxr_linenumber" name="L974" href="#L974">974</a>     Class&lt;?&gt; ownerClass, String methodName, Class&lt;?&gt; returnType, Class&lt;?&gt;... parameterTypes) {
 <a class="jxr_linenumber" name="L975" href="#L975">975</a>     mv.visitMethodInsn(
-<a class="jxr_linenumber" name="L976" href="#L976">976</a>       INVOKEVIRTUAL, internalName(ownerClass), methodName, methodDesc(returnType, parameterTypes));
+<a class="jxr_linenumber" name="L976" href="#L976">976</a>       INVOKEVIRTUAL, internalName(ownerClass), methodName, methodDesc(returnType, parameterTypes), false);
 <a class="jxr_linenumber" name="L977" href="#L977">977</a>   }
 <a class="jxr_linenumber" name="L978" href="#L978">978</a> 
 <a class="jxr_linenumber" name="L979" href="#L979">979</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> construct(
 <a class="jxr_linenumber" name="L980" href="#L980">980</a>     Class&lt;?&gt; ownerClass, Class&lt;?&gt;... parameterTypes) {
 <a class="jxr_linenumber" name="L981" href="#L981">981</a>     mv.visitMethodInsn(
-<a class="jxr_linenumber" name="L982" href="#L982">982</a>       INVOKESPECIAL, internalName(ownerClass), <span class="jxr_string">"&lt;init&gt;"</span>, methodDesc(<strong class="jxr_keyword">void</strong>.<strong class="jxr_keyword">class</strong>, parameterTypes));
+<a class="jxr_linenumber" name="L982" href="#L982">982</a>       INVOKESPECIAL, internalName(ownerClass), <span class="jxr_string">"&lt;init&gt;"</span>, methodDesc(<strong class="jxr_keyword">void</strong>.<strong class="jxr_keyword">class</strong>, parameterTypes), false);
 <a class="jxr_linenumber" name="L983" href="#L983">983</a>   }
 <a class="jxr_linenumber" name="L984" href="#L984">984</a> 
 <a class="jxr_linenumber" name="L985" href="#L985">985</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> String internalName(Class&lt;?&gt; clazz) {
