@@ -21,7 +21,7 @@
 <span class="fc" id="L21">      return (ClassDefiner) ClassDefiner.class.getClassLoader().loadClass(&quot;org.pojomatic.internal.LookupClassDefiner&quot;)</span>
 <span class="fc" id="L22">        .getConstructor()</span>
 <span class="fc" id="L23">        .newInstance();</span>
-<span class="nc" id="L24">    } catch (ReflectiveOperationException e) {</span>
+<span class="nc" id="L24">    } catch (ReflectiveOperationException | UnsupportedClassVersionError e) {</span>
 <span class="nc" id="L25">      return new ClassLoaderClassDefiner();</span>
     }
   }

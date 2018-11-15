@@ -135,11 +135,11 @@
 <a class="jxr_linenumber" name="L127" href="#L127">127</a> 
 <a class="jxr_linenumber" name="L128" href="#L128">128</a>   @Test
 <a class="jxr_linenumber" name="L129" href="#L129">129</a>   <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> testRepeatedFieldNames() {
-<a class="jxr_linenumber" name="L130" href="#L130">130</a>     <strong class="jxr_keyword">class</strong> <a href="../../../org/pojomatic/internal/ClassPropertiesTest.html">Parent</a> {
-<a class="jxr_linenumber" name="L131" href="#L131">131</a>       <strong class="jxr_keyword">protected</strong> <a href="../../../org/pojomatic/internal/ClassPropertiesTest.html">Parent</a>(<strong class="jxr_keyword">int</strong> x) { <strong class="jxr_keyword">this</strong>.x = x; }
+<a class="jxr_linenumber" name="L130" href="#L130">130</a>     <strong class="jxr_keyword">class</strong> <a href="../../../org/pojomatic/internal/PojomatorFactoryTest.html">Parent</a> {
+<a class="jxr_linenumber" name="L131" href="#L131">131</a>       <strong class="jxr_keyword">protected</strong> <a href="../../../org/pojomatic/internal/PojomatorFactoryTest.html">Parent</a>(<strong class="jxr_keyword">int</strong> x) { <strong class="jxr_keyword">this</strong>.x = x; }
 <a class="jxr_linenumber" name="L132" href="#L132">132</a>       @Property <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">int</strong> x;
 <a class="jxr_linenumber" name="L133" href="#L133">133</a>     }
-<a class="jxr_linenumber" name="L134" href="#L134">134</a>     <strong class="jxr_keyword">class</strong> <a href="../../../org/pojomatic/internal/PojomatorFactoryTest.html">Child</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/pojomatic/internal/ClassPropertiesTest.html">Parent</a> {
+<a class="jxr_linenumber" name="L134" href="#L134">134</a>     <strong class="jxr_keyword">class</strong> <a href="../../../org/pojomatic/internal/PojomatorFactoryTest.html">Child</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/pojomatic/internal/PojomatorFactoryTest.html">Parent</a> {
 <a class="jxr_linenumber" name="L135" href="#L135">135</a>       <strong class="jxr_keyword">public</strong> <a href="../../../org/pojomatic/internal/PojomatorFactoryTest.html">Child</a>(<strong class="jxr_keyword">int</strong> x1, <strong class="jxr_keyword">int</strong> x2) { <strong class="jxr_keyword">super</strong>(x1); <strong class="jxr_keyword">this</strong>.x = x2; }
 <a class="jxr_linenumber" name="L136" href="#L136">136</a>       @Property <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">int</strong> x;
 <a class="jxr_linenumber" name="L137" href="#L137">137</a>     }

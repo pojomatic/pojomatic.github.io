@@ -3,8 +3,8 @@ Pojomatic,org.pojomatic,Pojomatic,0,58,0,4,0,12,0,10,0,8
 Pojomatic,org.pojomatic,NoPojomaticPropertiesException,0,14,0,0,0,2,0,1,0,1
 Pojomatic,org.pojomatic,Pojomatic.new SelfPopulatingMap() {...},0,6,0,0,0,2,0,2,0,2
 Pojomatic,org.pojomatic.diff,PropertyDifferences,3,35,0,4,1,11,1,7,1,5
-Pojomatic,org.pojomatic.diff,ValueDifference,0,48,0,0,0,11,0,7,0,7
 Pojomatic,org.pojomatic.diff,NoDifferences,0,13,0,0,0,5,0,5,0,5
+Pojomatic,org.pojomatic.diff,ValueDifference,0,48,0,0,0,11,0,7,0,7
 Pojomatic,org.pojomatic.internal,Primitives,3,66,0,0,1,17,1,4,1,4
 Pojomatic,org.pojomatic.internal,PojomatorByteCodeGenerator,13,2886,1,95,0,544,1,91,0,43
 Pojomatic,org.pojomatic.internal,ClassDefinerFactory,8,32,1,3,3,10,2,4,1,3

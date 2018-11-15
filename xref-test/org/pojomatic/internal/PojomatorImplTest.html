@@ -173,14 +173,14 @@
 <a class="jxr_linenumber" name="L165" href="#L165">165</a> 
 <a class="jxr_linenumber" name="L166" href="#L166">166</a>   @Test <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> testInterface() {
 <a class="jxr_linenumber" name="L167" href="#L167">167</a>     Pojomator&lt;Interface&gt; pojomator = makePojomator(Interface.<strong class="jxr_keyword">class</strong>);
-<a class="jxr_linenumber" name="L168" href="#L168">168</a>     <strong class="jxr_keyword">class</strong> <a href="../../../org/pojomatic/internal/PojomatorImplTest.html">Impl1</a> <strong class="jxr_keyword">implements</strong> <a href="../../../org/pojomatic/internal/ClassPropertiesTest.html">Interface</a> {
+<a class="jxr_linenumber" name="L168" href="#L168">168</a>     <strong class="jxr_keyword">class</strong> <a href="../../../org/pojomatic/internal/PojomatorImplTest.html">Impl1</a> <strong class="jxr_keyword">implements</strong> <a href="../../../org/pojomatic/internal/PojomatorImplTest.html">Interface</a> {
 <a class="jxr_linenumber" name="L169" href="#L169">169</a>       @Override
 <a class="jxr_linenumber" name="L170" href="#L170">170</a>       <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> getInt() { <strong class="jxr_keyword">return</strong> 2; }
 <a class="jxr_linenumber" name="L171" href="#L171">171</a>       @Override
 <a class="jxr_linenumber" name="L172" href="#L172">172</a>       <strong class="jxr_keyword">public</strong> String getString() { <strong class="jxr_keyword">return</strong> <span class="jxr_string">"hello"</span>; }
 <a class="jxr_linenumber" name="L173" href="#L173">173</a>     }
 <a class="jxr_linenumber" name="L174" href="#L174">174</a> 
-<a class="jxr_linenumber" name="L175" href="#L175">175</a>     <strong class="jxr_keyword">class</strong> <a href="../../../org/pojomatic/internal/PojomatorImplTest.html">Impl2</a> <strong class="jxr_keyword">implements</strong> <a href="../../../org/pojomatic/internal/ClassPropertiesTest.html">Interface</a> {
+<a class="jxr_linenumber" name="L175" href="#L175">175</a>     <strong class="jxr_keyword">class</strong> <a href="../../../org/pojomatic/internal/PojomatorImplTest.html">Impl2</a> <strong class="jxr_keyword">implements</strong> <a href="../../../org/pojomatic/internal/PojomatorImplTest.html">Interface</a> {
 <a class="jxr_linenumber" name="L176" href="#L176">176</a>       <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> String string;
 <a class="jxr_linenumber" name="L177" href="#L177">177</a> 
 <a class="jxr_linenumber" name="L178" href="#L178">178</a>       <a href="../../../org/pojomatic/internal/PojomatorImplTest.html">Impl2</a>(String string) { <strong class="jxr_keyword">this</strong>.string = string; }
@@ -200,7 +200,7 @@
 <a class="jxr_linenumber" name="L192" href="#L192">192</a>   @Test <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> testIsCompatibleForEquals() {
 <a class="jxr_linenumber" name="L193" href="#L193">193</a>     assertTrue(OBJECT_PROPERTY_POJOMATOR.isCompatibleForEquality(ObjectProperty.<strong class="jxr_keyword">class</strong>));
 <a class="jxr_linenumber" name="L194" href="#L194">194</a>     assertFalse(OBJECT_PROPERTY_POJOMATOR.isCompatibleForEquality(ObjectPairProperty.<strong class="jxr_keyword">class</strong>));
-<a class="jxr_linenumber" name="L195" href="#L195">195</a>     assertTrue(makePojomator(Interface.<strong class="jxr_keyword">class</strong>).isCompatibleForEquality(<strong class="jxr_keyword">new</strong> <a href="../../../org/pojomatic/internal/ClassPropertiesTest.html">Interface</a>() {
+<a class="jxr_linenumber" name="L195" href="#L195">195</a>     assertTrue(makePojomator(Interface.<strong class="jxr_keyword">class</strong>).isCompatibleForEquality(<strong class="jxr_keyword">new</strong> <a href="../../../org/pojomatic/internal/PojomatorImplTest.html">Interface</a>() {
 <a class="jxr_linenumber" name="L196" href="#L196">196</a>       @Override
 <a class="jxr_linenumber" name="L197" href="#L197">197</a>       <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> getInt() { <strong class="jxr_keyword">return</strong> 0; }
 <a class="jxr_linenumber" name="L198" href="#L198">198</a>       @Override
@@ -361,7 +361,7 @@
 <a class="jxr_linenumber" name="L353" href="#L353">353</a>   }
 <a class="jxr_linenumber" name="L354" href="#L354">354</a> 
 <a class="jxr_linenumber" name="L355" href="#L355">355</a>   @AutoProperty(autoDetect = AutoDetectPolicy.METHOD)
-<a class="jxr_linenumber" name="L356" href="#L356">356</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">interface</strong> <a href="../../../org/pojomatic/internal/ClassPropertiesTest.html">Interface</a> {
+<a class="jxr_linenumber" name="L356" href="#L356">356</a>   <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">interface</strong> <a href="../../../org/pojomatic/internal/PojomatorImplTest.html">Interface</a> {
 <a class="jxr_linenumber" name="L357" href="#L357">357</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> getInt();
 <a class="jxr_linenumber" name="L358" href="#L358">358</a>     <strong class="jxr_keyword">public</strong> String getString();
 <a class="jxr_linenumber" name="L359" href="#L359">359</a>   }
